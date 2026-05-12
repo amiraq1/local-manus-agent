@@ -506,23 +506,36 @@ async def api_models_download_instructions(model_id: str = "gemma-e2b-litert"):
 
 
 @app.get("/api/config")
-async def api_get_config():
-    """Get user config."""
+@app.get("/api/settings")
+async def api_get_settings():
+    """Get all settings."""
     from app.user_config_manager import load_user_config
     return load_user_config()
 
 
 @app.post("/api/config")
-async def api_set_config(body: dict):
-    """Update user config."""
-    from app.user_config_manager import load_user_config, save_user_config
-    cfg = load_user_config()
-    # Only allow updating known keys
-    for key in ["active_preset", "model_paths", "ollama_base_url", "litert_settings"]:
-        if key in body:
-            cfg[key] = body[key]
-    save_user_config(cfg)
-    return {"success": True, "config": cfg}
+@app.post("/api/settings")
+async def api_set_settings(body: dict):
+    """Update settings with validation."""
+    from app.user_config_manager import update_settings
+    success, data, errors = update_settings(body)
+    if success:
+        return {"success": True, "settings": data}
+    return {"success": False, "errors": errors, "settings": data}
+
+
+@app.post("/api/settings/reset")
+async def api_reset_settings():
+    """Reset settings to defaults."""
+    from app.user_config_manager import reset_settings
+    return {"success": True, "settings": reset_settings()}
+
+
+@app.get("/api/settings/schema")
+async def api_settings_schema():
+    """Get settings JSON schema for validation."""
+    from app.config.settings_schema import get_settings_schema
+    return get_settings_schema()
 
 
 # --- Memory & RAG ---

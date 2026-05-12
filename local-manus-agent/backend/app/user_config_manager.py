@@ -1,38 +1,53 @@
-"""User Config Manager - persists user preferences without modifying config.py."""
+"""User Config Manager - persists structured settings."""
 import json
 from pathlib import Path
 
-CONFIG_FILE = Path(__file__).parent / "user_config.json"
+from app.config.settings_schema import DEFAULT_SETTINGS, validate_settings
 
-_DEFAULT = {
-    "active_preset": "ollama-qwen-coder",
-    "model_paths": {},
-    "ollama_base_url": "http://localhost:11434",
-    "litert_device": "cpu",
-    "litert_temperature": 0.7,
-    "litert_max_tokens": 4096,
-    "allow_fallback": True,
-}
+CONFIG_FILE = Path(__file__).parent / "user_config.json"
 
 
 def load_user_config() -> dict:
-    """Load user config from JSON file."""
+    """Load user config, merging with defaults for missing keys."""
     if not CONFIG_FILE.exists():
-        save_user_config(_DEFAULT)
-        return _DEFAULT.copy()
+        save_user_config(DEFAULT_SETTINGS)
+        return DEFAULT_SETTINGS.copy()
     try:
         data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-        for k, v in _DEFAULT.items():
-            if k not in data:
-                data[k] = v
-        return data
+        # Deep merge with defaults
+        merged = _deep_merge(DEFAULT_SETTINGS.copy(), data)
+        return merged
     except Exception:
-        return _DEFAULT.copy()
+        return DEFAULT_SETTINGS.copy()
 
 
 def save_user_config(data: dict):
     """Save user config to JSON file."""
     CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def update_settings(partial: dict) -> tuple[bool, dict, list[str]]:
+    """Update settings with validation.
+
+    Args:
+        partial: Partial settings dict to merge.
+
+    Returns:
+        Tuple of (success, full_settings, errors).
+    """
+    current = load_user_config()
+    merged = _deep_merge(current, partial)
+    valid, validated, errors = validate_settings(merged)
+    if valid:
+        save_user_config(validated)
+        return True, validated, []
+    return False, current, errors
+
+
+def reset_settings() -> dict:
+    """Reset to default settings."""
+    save_user_config(DEFAULT_SETTINGS)
+    return DEFAULT_SETTINGS.copy()
 
 
 def get_model_path(model_id: str) -> str:
@@ -52,11 +67,25 @@ def set_model_path(model_id: str, path: str):
 
 def get_active_preset() -> str:
     """Get the active preset."""
-    return load_user_config().get("active_preset", "ollama-qwen-coder")
+    cfg = load_user_config()
+    return cfg.get("llm", {}).get("active_preset", "ollama-qwen-coder")
 
 
 def set_active_preset(preset_id: str):
     """Set the active preset."""
     cfg = load_user_config()
-    cfg["active_preset"] = preset_id
+    if "llm" not in cfg:
+        cfg["llm"] = {}
+    cfg["llm"]["active_preset"] = preset_id
     save_user_config(cfg)
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Deep merge override into base."""
+    result = base.copy()
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result

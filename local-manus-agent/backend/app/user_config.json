@@ -1,10 +1,49 @@
 {
-  "active_preset": "ollama",
-  "model_paths": {},
-  "ollama_base_url": "http://localhost:11434",
-  "litert_settings": {
-    "device": "cpu",
-    "temperature": 0.7,
-    "max_tokens": 4096
+  "general": {
+    "app_theme": "dark",
+    "language": "auto",
+    "auto_start_preview": true
+  },
+  "llm": {
+    "active_preset": "ollama-qwen-coder",
+    "ollama_base_url": "http://localhost:11434",
+    "litert_device": "cpu",
+    "litert_temperature": 0.7,
+    "litert_max_tokens": 4096,
+    "allow_fallback": true
+  },
+  "security": {
+    "execution_mode": "safe",
+    "require_command_approval": true,
+    "require_file_change_approval": false,
+    "allow_package_installs": false,
+    "allow_network_commands": false
+  },
+  "sandbox": {
+    "enabled": true,
+    "backend": "docker",
+    "image": "local-manus-sandbox:latest",
+    "memory_limit": "512m",
+    "cpu_limit": 1.0,
+    "network_enabled": false,
+    "command_timeout": 30
+  },
+  "browser": {
+    "enabled": true,
+    "allow_external_urls": false,
+    "screenshot_enabled": true,
+    "default_viewport": "1280x720"
+  },
+  "memory": {
+    "enabled": true,
+    "auto_index": true,
+    "auto_summarize": true,
+    "max_index_file_size": 100000
+  },
+  "termux": {
+    "detected": false,
+    "force_safe_mode": true,
+    "browser_mode": "disabled",
+    "host": "127.0.0.1"
   }
 }

@@ -20,6 +20,7 @@ import MobileNav, { MobileTab } from "@/components/MobileNav";
 import SettingsPanel from "@/components/SettingsPanel";
 import SecurityPanel from "@/components/SecurityPanel";
 import ModelManagerPanel from "@/components/ModelManagerPanel";
+import SettingsFullPanel from "@/components/SettingsFullPanel";
 import { useAgent } from "@/lib/useAgent";
 
 export default function Home() {
@@ -133,11 +134,7 @@ export default function Home() {
         )}
         {mobileTab === "settings" && (
           <div className="flex-1 overflow-y-auto">
-            <SettingsPanel />
-            <ModelManagerPanel />
-            <SecurityPanel />
-            <SandboxStatus />
-            <LLMStatusPanel />
+            <SettingsFullPanel />
           </div>
         )}
       </div>

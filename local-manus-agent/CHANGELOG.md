@@ -1,45 +1,33 @@
 # Changelog
 
-## v1.0.0 (2026-05-12) — First Stable Release
+## v1.1.0 (2026-05-12) — Usability & Productivity
 
-Production-ready local autonomous agent foundation.
+### Added
+- **Model Manager**: Browse, download, and configure LLM models from the UI
+- **Settings UI**: Full structured settings panel with validation (General, Models, Security, Sandbox, Browser, Memory, Termux, About)
+- **Export Task as ZIP**: Download all task outputs (files, screenshots, logs, metadata) as a single archive
+- **Project Templates**: 6 ready-to-use templates (HTML Landing Page, React Vite, Next.js Dashboard, FastAPI API, Python CLI, Docs Site)
+- **Goal Mode**: Describe what you want → auto-analyze → select template → generate → review → preview → export
+- Gemma E2B/E4B LiteRT-LM model registry with download instructions
+- `user_config.json` persistence (settings survive restarts without editing config.py)
+- Pydantic-based settings validation
+- `GET /api/settings/schema` for frontend form generation
+- `POST /api/settings/reset` to restore defaults
+- `POST /api/goals/analyze` and `POST /api/goals/run` endpoints
+- `POST /api/tasks/{id}/export` and download endpoints
+- `GET /api/templates` and generate endpoints
+- GoalModePanel, TemplatesPanel, ModelManagerPanel, SettingsFullPanel, ExportPanel components
 
-### Core
-- **Multi-Agent Orchestration**: Orchestrator + PlannerAgent, CoderAgent, ReviewerAgent, SecurityAgent, BrowserAgent, MemoryAgent
-- **Local LLM Providers**: Ollama (primary) + LiteRT-LM (with fallback)
-- **Docker Sandbox**: Isolated command execution with resource limits
-- **Browser Automation**: Headless Chromium via Playwright for visual verification
-- **Task Workspaces**: Per-task isolated directories with artifacts tracking
-- **File Diff System**: Unified diffs with pending/accept/reject approval flow
-- **Code Review + Auto Fix**: Pattern detection, lint, and automatic fixes
-- **Agent Memory + Project RAG**: File indexing, keyword search, context retrieval
-- **Artifacts System**: Tracks files, screenshots, and reports per task
-
-### Platform
-- **Termux Lite Mode**: Full Android support with platform detection and adaptations
-- **Mobile UI + PWA**: Responsive layout, bottom navigation, installable web app
-- **Desktop App**: Tauri scaffold for native Windows/Linux/macOS builds
-- **One-command Scripts**: `setup.py`, `start.py`, `stop.py`, `dev.py`
-- **Cross-platform**: Windows (.bat), Linux/macOS (.sh), Termux scripts
-
-### Security
-- Central permission system (allow/deny/require_approval)
-- Security events database with audit trail
-- Automated security scan in CI
-- Path traversal, shell injection, and secrets access blocked
-- Docker: no-privileged, no-socket, non-root, resource limits
-- Termux: Safe Mode enforced, extra command restrictions
-- SECURITY.md and SECURITY_AUDIT.md
-
-### Infrastructure
-- FastAPI backend (Python 3.11+)
-- Next.js 14 + React + TypeScript + Tailwind CSS
-- SQLite persistence (10 tables)
-- Real-time WebSocket streaming
-- GitHub Actions CI (backend, frontend, Docker, security)
-- Docker Compose support
+### Improved
+- LLMStatusPanel now shows preset selector with model availability
+- Settings persist in JSON instead of requiring config.py edits
+- Better error messages for missing models
 
 ---
+
+## v1.0.0 (2026-05-12) — First Stable Release
+
+Production-ready local autonomous agent with multi-agent architecture, security hardening, and full platform support.
 
 ## v1.0.0-rc.1 (2026-05-12)
 

@@ -1,4 +1,4 @@
-# Local Manus Agent v1.0.0
+# Local Manus Agent v1.1.0
 
 [![CI](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/amiraq1/local-manus-agent)](https://github.com/amiraq1/local-manus-agent/releases)

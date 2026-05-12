@@ -395,6 +395,7 @@ async def api_litert_test_cli(body: dict):
     import config
 
     prompt = body.get("prompt", "اكتب جملة قصيرة بالعربية")
+    method = body.get("method", "")  # Optional: temp_file, stdin, arg
 
     # Ensure model path is set
     cfg = load_user_config()
@@ -418,6 +419,18 @@ async def api_litert_test_cli(body: dict):
         return {"success": False, "error": info.get("error", "CLI not available"), "info": info}
 
     try:
+        if method:
+            # Use specific method for diagnostics
+            result = provider.run_with_method(prompt, method)
+            return {
+                "success": result.get("success", False),
+                "output": result.get("output", ""),
+                "method": result.get("method", method),
+                "stderr": result.get("stderr", ""),
+                "error": result.get("error"),
+                "runtime": "cli",
+                "info": info,
+            }
         output = await provider.generate(prompt)
         return {"success": True, "output": output, "runtime": "cli", "info": info}
     except Exception as e:

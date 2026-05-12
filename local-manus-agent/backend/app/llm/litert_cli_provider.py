@@ -1,12 +1,16 @@
 """LiteRT-LM CLI Provider - uses the litert-lm.exe binary to run .litertlm models.
 
-This provider runs the local CLI as a subprocess, which avoids needing a Python SDK.
-Works on Windows/Linux/macOS wherever the CLI is installed.
+This provider runs the local CLI as a subprocess. Supports three prompt modes
+to handle Unicode/Arabic text correctly on Windows:
+- temp_file: write prompt to UTF-8 temp file, pass via --prompt-file (safest)
+- stdin: pipe prompt via stdin
+- arg: pass via --prompt (fails for non-ASCII on Windows consoles)
 """
 import json
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
@@ -14,7 +18,7 @@ from app.llm.base import LocalLLMProvider
 from config import LITERT_CONFIG
 
 
-# Default CLI search paths (Windows-friendly)
+# Default CLI search paths
 _DEFAULT_CLI_PATHS = [
     r"C:\Users\Aledari\.local\bin\litert-lm.exe",
     r"C:\Program Files\litert-lm\litert-lm.exe",
@@ -24,13 +28,7 @@ _DEFAULT_CLI_PATHS = [
 
 
 def find_cli(explicit_path: str = "") -> Optional[str]:
-    """Find the litert-lm CLI executable.
-
-    Order:
-    1. Explicit path from config/settings
-    2. shutil.which("litert-lm")
-    3. Default well-known paths
-    """
+    """Find the litert-lm CLI executable."""
     if explicit_path and Path(explicit_path).is_file():
         return explicit_path
 
@@ -42,7 +40,6 @@ def find_cli(explicit_path: str = "") -> Optional[str]:
         if Path(p).is_file():
             return p
 
-    # Check user home on Windows
     home = os.environ.get("USERPROFILE") or os.environ.get("HOME")
     if home:
         candidate = Path(home) / ".local" / "bin" / ("litert-lm.exe" if os.name == "nt" else "litert-lm")
@@ -55,7 +52,7 @@ def find_cli(explicit_path: str = "") -> Optional[str]:
 def get_cli_version(cli_path: str) -> str:
     """Get CLI version string."""
     try:
-        r = subprocess.run([cli_path, "--version"], capture_output=True, text=True, timeout=5)
+        r = subprocess.run([cli_path, "--version"], capture_output=True, text=True, timeout=5, encoding="utf-8", errors="replace")
         if r.returncode == 0:
             return (r.stdout or r.stderr).strip().split("\n")[0]
     except Exception:
@@ -63,8 +60,18 @@ def get_cli_version(cli_path: str) -> str:
     return "unknown"
 
 
+def _cli_supports_prompt_file(cli_path: str) -> bool:
+    """Check if CLI supports --prompt-file flag."""
+    try:
+        r = subprocess.run([cli_path, "run", "--help"], capture_output=True, text=True, timeout=5, encoding="utf-8", errors="replace")
+        help_text = (r.stdout or "") + (r.stderr or "")
+        return "--prompt-file" in help_text or "prompt_file" in help_text
+    except Exception:
+        return False
+
+
 class LiteRTCLIProvider(LocalLLMProvider):
-    """LiteRT-LM provider that uses the CLI subprocess."""
+    """LiteRT-LM provider using the CLI subprocess."""
 
     def __init__(self):
         self.model_path = LITERT_CONFIG.get("model_path", "")
@@ -73,8 +80,9 @@ class LiteRTCLIProvider(LocalLLMProvider):
         self.backend = LITERT_CONFIG.get("backend", "cpu")
         self.cli_path = LITERT_CONFIG.get("cli_path", "")
         self.timeout = int(LITERT_CONFIG.get("timeout", 180))
+        self.prompt_mode = "temp_file"  # temp_file, stdin, arg
 
-        # Pull from user_config if available
+        # Load from user_config
         try:
             from app.user_config_manager import load_user_config
             cfg = load_user_config()
@@ -82,7 +90,7 @@ class LiteRTCLIProvider(LocalLLMProvider):
             self.cli_path = self.cli_path or llm_cfg.get("litert_cli_path", "")
             self.backend = llm_cfg.get("litert_backend", self.backend)
             self.timeout = int(llm_cfg.get("litert_timeout", self.timeout))
-            # Also try user-set model path
+            self.prompt_mode = llm_cfg.get("litert_prompt_mode", self.prompt_mode)
             if not self.model_path:
                 mp = cfg.get("model_paths", {}).get("gemma-e2b-litert", "")
                 if mp:
@@ -90,11 +98,17 @@ class LiteRTCLIProvider(LocalLLMProvider):
         except Exception:
             pass
 
-        # Resolve CLI
         self._resolved_cli = find_cli(self.cli_path)
+        # Cache whether CLI supports --prompt-file
+        self._supports_prompt_file: Optional[bool] = None
+
+    def _check_prompt_file_support(self) -> bool:
+        """Check (once) if CLI supports --prompt-file."""
+        if self._supports_prompt_file is None and self._resolved_cli:
+            self._supports_prompt_file = _cli_supports_prompt_file(self._resolved_cli)
+        return bool(self._supports_prompt_file)
 
     def is_available(self) -> bool:
-        """True if CLI and model both exist."""
         if not self._resolved_cli:
             return False
         if not self.model_path or not Path(self.model_path).exists():
@@ -102,7 +116,6 @@ class LiteRTCLIProvider(LocalLLMProvider):
         return True
 
     def model_info(self) -> dict:
-        """Return provider status."""
         cli_exists = bool(self._resolved_cli)
         model_exists = bool(self.model_path and Path(self.model_path).exists())
 
@@ -117,6 +130,8 @@ class LiteRTCLIProvider(LocalLLMProvider):
             "timeout": self.timeout,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
+            "prompt_mode": self.prompt_mode,
+            "supports_prompt_file": self._check_prompt_file_support() if cli_exists else False,
             "available": self.is_available(),
         }
 
@@ -127,7 +142,7 @@ class LiteRTCLIProvider(LocalLLMProvider):
             info["status_code"] = "ready_cli"
         elif cli_exists and not model_exists:
             info["status_code"] = "cli_ready_model_missing"
-            info["error"] = f"CLI found at {self._resolved_cli}, but model file missing"
+            info["error"] = "CLI found, but model file missing"
         elif not cli_exists and model_exists:
             info["status_code"] = "model_ready_cli_missing"
             info["error"] = "Model file found, but litert-lm CLI not installed"
@@ -138,7 +153,7 @@ class LiteRTCLIProvider(LocalLLMProvider):
         return info
 
     def _messages_to_prompt(self, messages) -> str:
-        """Convert messages (string or list) to a single prompt."""
+        """Convert messages to a single prompt string."""
         if isinstance(messages, str):
             return messages
         if isinstance(messages, list):
@@ -153,43 +168,136 @@ class LiteRTCLIProvider(LocalLLMProvider):
             return "\n".join(parts)
         return str(messages)
 
-    def _run_cli(self, prompt: str) -> dict:
-        """Run the CLI and return stdout/stderr/returncode."""
-        if not self._resolved_cli:
-            return {"success": False, "error": "CLI not found", "output": "", "stderr": ""}
-        if not self.model_path or not Path(self.model_path).exists():
-            return {"success": False, "error": "Model file not found", "output": "", "stderr": ""}
+    def _make_env(self) -> dict:
+        """Build environment with UTF-8 forced."""
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["LANG"] = env.get("LANG") or "en_US.UTF-8"
+        return env
 
-        cmd = [
-            self._resolved_cli,
-            "run",
-            self.model_path,
-            f"--backend={self.backend}",
-            "--prompt",
-            prompt,
-        ]
+    def _run_cli_with_temp_file(self, prompt: str) -> dict:
+        """Run CLI with prompt written to a UTF-8 temp file."""
+        # Try --prompt-file if supported
+        use_prompt_file_flag = self._check_prompt_file_support()
+
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".txt", delete=False
+        )
+        tmp.write(prompt)
+        tmp.close()
 
         try:
+            if use_prompt_file_flag:
+                cmd = [self._resolved_cli, "run", self.model_path, f"--backend={self.backend}", "--prompt-file", tmp.name]
+            else:
+                # CLI doesn't support --prompt-file, fall back to --prompt with proper encoding
+                cmd = [self._resolved_cli, "run", self.model_path, f"--backend={self.backend}", "--prompt", prompt]
+
             r = subprocess.run(
                 cmd,
                 capture_output=True,
-                text=True,
                 timeout=self.timeout,
-                encoding="utf-8",
-                errors="replace",
+                env=self._make_env(),
             )
-            output = (r.stdout or "").strip()
-            stderr = (r.stderr or "").strip()
+            # Decode output manually with UTF-8
+            stdout = r.stdout.decode("utf-8", errors="replace") if r.stdout else ""
+            stderr = r.stderr.decode("utf-8", errors="replace") if r.stderr else ""
+
             return {
                 "success": r.returncode == 0,
-                "output": output,
-                "stderr": stderr,
+                "output": stdout.strip(),
+                "stderr": stderr.strip(),
                 "returncode": r.returncode,
+                "method": "prompt-file" if use_prompt_file_flag else "prompt-arg",
             }
         except subprocess.TimeoutExpired:
             return {"success": False, "error": f"Timeout after {self.timeout}s", "output": "", "stderr": ""}
         except Exception as e:
             return {"success": False, "error": str(e), "output": "", "stderr": ""}
+        finally:
+            try:
+                os.unlink(tmp.name)
+            except Exception:
+                pass
+
+    def _run_cli_with_stdin(self, prompt: str) -> dict:
+        """Run CLI piping prompt via stdin."""
+        cmd = [self._resolved_cli, "run", self.model_path, f"--backend={self.backend}"]
+
+        try:
+            r = subprocess.run(
+                cmd,
+                input=prompt.encode("utf-8"),
+                capture_output=True,
+                timeout=self.timeout,
+                env=self._make_env(),
+            )
+            stdout = r.stdout.decode("utf-8", errors="replace") if r.stdout else ""
+            stderr = r.stderr.decode("utf-8", errors="replace") if r.stderr else ""
+
+            return {
+                "success": r.returncode == 0,
+                "output": stdout.strip(),
+                "stderr": stderr.strip(),
+                "returncode": r.returncode,
+                "method": "stdin",
+            }
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": f"Timeout after {self.timeout}s", "output": "", "stderr": ""}
+        except Exception as e:
+            return {"success": False, "error": str(e), "output": "", "stderr": ""}
+
+    def _run_cli_with_arg(self, prompt: str) -> dict:
+        """Run CLI with --prompt argument (may fail for non-ASCII on Windows)."""
+        cmd = [self._resolved_cli, "run", self.model_path, f"--backend={self.backend}", "--prompt", prompt]
+
+        try:
+            r = subprocess.run(
+                cmd,
+                capture_output=True,
+                timeout=self.timeout,
+                env=self._make_env(),
+            )
+            stdout = r.stdout.decode("utf-8", errors="replace") if r.stdout else ""
+            stderr = r.stderr.decode("utf-8", errors="replace") if r.stderr else ""
+
+            return {
+                "success": r.returncode == 0,
+                "output": stdout.strip(),
+                "stderr": stderr.strip(),
+                "returncode": r.returncode,
+                "method": "prompt-arg",
+            }
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": f"Timeout after {self.timeout}s", "output": "", "stderr": ""}
+        except Exception as e:
+            return {"success": False, "error": str(e), "output": "", "stderr": ""}
+
+    def _run_cli(self, prompt: str) -> dict:
+        """Run the CLI using the configured prompt mode."""
+        if not self._resolved_cli:
+            return {"success": False, "error": "CLI not found", "output": "", "stderr": ""}
+        if not self.model_path or not Path(self.model_path).exists():
+            return {"success": False, "error": "Model file not found", "output": "", "stderr": ""}
+
+        mode = self.prompt_mode
+        if mode == "stdin":
+            result = self._run_cli_with_stdin(prompt)
+        elif mode == "arg":
+            result = self._run_cli_with_arg(prompt)
+        else:  # temp_file (default)
+            result = self._run_cli_with_temp_file(prompt)
+
+        # If temp_file failed and prompt has non-ASCII, try stdin as fallback
+        if not result.get("success") and mode == "temp_file":
+            has_unicode = any(ord(c) > 127 for c in prompt)
+            if has_unicode:
+                stdin_result = self._run_cli_with_stdin(prompt)
+                if stdin_result.get("success"):
+                    return stdin_result
+
+        return result
 
     async def generate(self, prompt, **kwargs) -> str:
         """Generate a response via the CLI."""
@@ -200,7 +308,7 @@ class LiteRTCLIProvider(LocalLLMProvider):
         raise RuntimeError(result.get("error") or result.get("stderr") or "CLI run failed")
 
     async def stream(self, prompt, **kwargs) -> AsyncGenerator[str, None]:
-        """Stream - currently yields the full output as one chunk."""
+        """Stream - yields full output as one chunk (CLI has no native streaming)."""
         text = await self.generate(prompt, **kwargs)
         if text:
             yield text
@@ -218,3 +326,15 @@ class LiteRTCLIProvider(LocalLLMProvider):
         except (json.JSONDecodeError, KeyError):
             pass
         return None
+
+    def run_with_method(self, prompt: str, method: str = "temp_file") -> dict:
+        """Run CLI with a specific method (for testing/diagnostics)."""
+        if not self._resolved_cli or not self.model_path:
+            return {"success": False, "error": "Provider not configured"}
+
+        if method == "stdin":
+            return self._run_cli_with_stdin(prompt)
+        elif method == "arg":
+            return self._run_cli_with_arg(prompt)
+        else:
+            return self._run_cli_with_temp_file(prompt)

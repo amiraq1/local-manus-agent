@@ -23,6 +23,7 @@ class LLMSettings(BaseModel):
     litert_cli_path: str = ""
     litert_backend: str = "cpu"
     litert_timeout: int = Field(default=180, ge=10, le=3600)
+    litert_prompt_mode: str = "temp_file"  # temp_file, stdin, arg
     litert_device: str = "cpu"
     litert_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     litert_max_tokens: int = Field(default=4096, ge=128, le=32768)

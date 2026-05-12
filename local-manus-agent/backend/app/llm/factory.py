@@ -38,6 +38,17 @@ def get_llm_provider() -> LocalLLMProvider:
         _provider_error = ""
 
     elif LLM_PROVIDER == "litert":
+        # Try CLI provider first (works without Python SDK)
+        from app.llm.litert_cli_provider import LiteRTCLIProvider
+        cli = LiteRTCLIProvider()
+
+        if cli.is_available():
+            _provider_instance = cli
+            _fallback_used = False
+            _provider_error = ""
+            return _provider_instance
+
+        # Fall back to Python SDK provider
         from app.llm.litert_provider import LiteRTProvider
         litert = LiteRTProvider()
 
@@ -46,29 +57,24 @@ def get_llm_provider() -> LocalLLMProvider:
             _fallback_used = False
             _provider_error = ""
         else:
-            # LiteRT not available - check fallback
+            # Neither CLI nor SDK - check external fallback
             from config import LITERT_CONFIG
             allow_fallback = LITERT_CONFIG.get("allow_fallback", True)
             fallback_provider = LITERT_CONFIG.get("fallback_provider", "ollama")
 
-            info = litert.model_info()
-            _provider_error = info.get("error", "LiteRT-LM not available")
+            cli_info = cli.model_info()
+            sdk_info = litert.model_info()
+            _provider_error = cli_info.get("error") or sdk_info.get("error", "LiteRT-LM not available")
 
             if allow_fallback and fallback_provider == "ollama":
-                logger.warning(
-                    f"LiteRT-LM not available ({_provider_error}). "
-                    f"Falling back to Ollama."
-                )
+                logger.warning(f"LiteRT-LM not available ({_provider_error}). Falling back to Ollama.")
                 from app.llm.ollama_provider import OllamaProvider
                 _provider_instance = OllamaProvider()
                 _fallback_used = True
             else:
                 raise RuntimeError(
                     f"LiteRT-LM is not available: {_provider_error}\n"
-                    f"Either:\n"
-                    f"  1. Install LiteRT-LM SDK and configure model_path\n"
-                    f"  2. Set LLM_PROVIDER='ollama' in config.py\n"
-                    f"  3. Set LITERT_CONFIG['allow_fallback']=True for auto-fallback"
+                    f"Install litert-lm CLI or Python SDK, or set LLM_PROVIDER='ollama'."
                 )
     else:
         raise ValueError(f"Unknown LLM_PROVIDER: {LLM_PROVIDER}. Use 'ollama' or 'litert'.")

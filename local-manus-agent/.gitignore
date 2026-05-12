@@ -37,7 +37,10 @@ Thumbs.db
 # Models (large binary files)
 models/imported/
 models/.uploads/
+models/gemma-e2b/
+models/gemma-e4b/
 *.litertlm
+*.xnnpack_cache*
 
 # Workspace output (user-generated)
 backend/workspace/tasks/

@@ -151,6 +151,7 @@ export default function LLMStatusPanel() {
               const d = await r.json();
               const lines = [
                 `SDK: ${d.sdk_installed ? "✓ " + d.sdk_module : "✗ not installed"}`,
+                `CLI: ${d.cli_available ? "✓ " + d.cli_path : "✗ not found"}`,
                 `Model: ${d.model_path_exists ? "✓ " + d.model_path : "✗ not found"}`,
                 `Runtime: ${d.runtime_available ? "✓ ready" : "✗ " + d.status}`,
                 d.message,
@@ -162,6 +163,25 @@ export default function LLMStatusPanel() {
           className="w-full px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px]"
         >
           Diagnose LiteRT
+        </button>
+
+        {/* Test LiteRT CLI */}
+        <button
+          onClick={async () => {
+            try {
+              const r = await fetch(`${API}/llm/litert/test-cli`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: "اكتب جملة قصيرة بالعربية عن الذكاء الاصطناعي المحلي" }),
+              });
+              const d = await r.json();
+              if (d.success) alert("✓ LiteRT CLI output:\n\n" + d.output);
+              else alert("✗ " + (d.error || "Failed"));
+            } catch { alert("Test failed"); }
+          }}
+          className="w-full px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px]"
+        >
+          Test LiteRT CLI
         </button>
       </div>
     </div>

@@ -387,6 +387,43 @@ async def api_litert_diagnostics():
     return get_full_diagnostics(model_path, device)
 
 
+@app.post("/api/llm/litert/test-cli")
+async def api_litert_test_cli(body: dict):
+    """Test LiteRT-LM CLI with a prompt."""
+    from app.llm.litert_cli_provider import LiteRTCLIProvider
+    from app.user_config_manager import load_user_config
+    import config
+
+    prompt = body.get("prompt", "اكتب جملة قصيرة بالعربية")
+
+    # Ensure model path is set
+    cfg = load_user_config()
+    model_path = (
+        cfg.get("model_paths", {}).get("gemma-e2b-litert", "")
+        or config.GEMMA_E2B_LITERT_MODEL_PATH
+    )
+    if not model_path:
+        from app.llm.model_registry import MODEL_REGISTRY
+        from pathlib import Path as _P
+        rec = MODEL_REGISTRY.get("gemma-e2b-litert", {}).get("recommended_path", "")
+        if rec and _P(rec).exists():
+            model_path = rec
+
+    if model_path:
+        config.LITERT_CONFIG["model_path"] = model_path
+
+    provider = LiteRTCLIProvider()
+    info = provider.model_info()
+    if not provider.is_available():
+        return {"success": False, "error": info.get("error", "CLI not available"), "info": info}
+
+    try:
+        output = await provider.generate(prompt)
+        return {"success": True, "output": output, "runtime": "cli", "info": info}
+    except Exception as e:
+        return {"success": False, "error": str(e), "info": info}
+
+
 @app.post("/api/llm/test")
 async def api_llm_test():
     """Test the LLM provider with a simple prompt."""
@@ -460,21 +497,23 @@ async def api_select_preset(body: dict):
                 "hint": "Set GEMMA_E2B_LITERT_MODEL_PATH in config.py or use Model Manager to set the path.",
             }
 
-        # Model file exists - check SDK
+        # Model file exists - check CLI first, then SDK
+        from app.llm.litert_cli_provider import find_cli
+        cli_ok = bool(find_cli())
         try:
             import litert_lm  # type: ignore
             sdk_ok = True
         except ImportError:
             sdk_ok = False
 
-        if not sdk_ok:
+        if not cli_ok and not sdk_ok:
             return {
                 "success": False,
-                "error": "LiteRT-LM SDK missing",
-                "error_code": "sdk_missing",
-                "message": "Model file found, but LiteRT-LM SDK/runtime is not installed.",
+                "error": "LiteRT-LM runtime missing",
+                "error_code": "runtime_missing",
+                "message": "Model file found, but neither litert-lm CLI nor Python SDK is installed.",
                 "model_path": model_path,
-                "hint": "Install LiteRT-LM SDK: pip install litert-lm",
+                "hint": "Install litert-lm CLI or use Model Manager → Diagnose LiteRT.",
             }
 
         config.LLM_PROVIDER = "litert"

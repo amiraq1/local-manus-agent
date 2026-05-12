@@ -1,0 +1,3 @@
+@echo off
+echo Starting Local Manus Agent...
+python scripts\start.py

@@ -447,6 +447,13 @@ async def api_select_preset(body: dict):
 
 # --- Models ---
 
+@app.get("/api/models")
+async def api_models_list():
+    """Get the model registry."""
+    from app.llm.model_registry import MODEL_REGISTRY
+    return {"models": [{"id": k, **{kk: vv for kk, vv in v.items() if kk != "download_commands"}} for k, v in MODEL_REGISTRY.items()]}
+
+
 @app.get("/api/models/status")
 async def api_models_status():
     """Get status of all registered models."""

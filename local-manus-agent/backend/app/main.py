@@ -293,6 +293,70 @@ async def api_autofix(task_id: str, body: dict = {}):
     return do_fix(task_id, path)
 
 
+# --- Memory & RAG ---
+
+@app.post("/api/tasks/{task_id}/memory")
+async def api_add_memory(task_id: str, body: dict):
+    """Store a memory for a task."""
+    from app.memory.memory_store import remember
+    mem_type = body.get("type", "note")
+    content = body.get("content", "")
+    metadata = body.get("metadata")
+    if not content:
+        return {"error": "content is required"}
+    return remember(task_id, mem_type, content, metadata)
+
+
+@app.get("/api/tasks/{task_id}/memory")
+async def api_list_memories(task_id: str, type: Optional[str] = None):
+    """List memories for a task."""
+    from app.memory.memory_store import list_memories
+    return {"memories": list_memories(task_id=task_id, memory_type=type)}
+
+
+@app.post("/api/tasks/{task_id}/index")
+async def api_index_files(task_id: str, body: dict = {}):
+    """Index files in a task workspace."""
+    from app.memory.indexer import index_task_files
+    force = body.get("force", False)
+    return index_task_files(task_id, force=force)
+
+
+@app.get("/api/tasks/{task_id}/index")
+async def api_get_index(task_id: str):
+    """Get file index for a task."""
+    from app.memory.memory_store import get_file_index
+    return {"index": get_file_index(task_id)}
+
+
+@app.post("/api/tasks/{task_id}/search")
+async def api_search_files(task_id: str, body: dict):
+    """Search indexed files."""
+    from app.memory.retriever import search_project_files
+    query = body.get("query", "")
+    if not query:
+        return {"error": "query is required"}
+    return search_project_files(task_id, query)
+
+
+@app.post("/api/tasks/{task_id}/context")
+async def api_get_context(task_id: str, body: dict):
+    """Get relevant context for a query."""
+    from app.memory.retriever import get_relevant_context
+    query = body.get("query", "")
+    limit = body.get("limit", 5)
+    if not query:
+        return {"error": "query is required"}
+    return get_relevant_context(task_id, query, limit)
+
+
+@app.post("/api/tasks/{task_id}/summarize")
+async def api_summarize(task_id: str):
+    """Generate project summary."""
+    from app.memory.summarizer import summarize_project
+    return summarize_project(task_id)
+
+
 # --- Sandbox ---
 
 @app.get("/api/sandbox/status")

@@ -12,6 +12,7 @@ import BrowserPanel from "@/components/BrowserPanel";
 import FileDiffPanel from "@/components/FileDiffPanel";
 import SandboxStatus from "@/components/SandboxStatus";
 import ArtifactsPanel from "@/components/ArtifactsPanel";
+import MemoryPanel from "@/components/MemoryPanel";
 import { useAgent } from "@/lib/useAgent";
 
 export default function Home() {
@@ -88,6 +89,7 @@ export default function Home() {
           <FileExplorer files={files} onRefresh={refreshFiles} />
           <BrowserPanel state={browserState} onClose={closeBrowser} />
           <ArtifactsPanel taskId={currentTaskId} />
+          <MemoryPanel taskId={currentTaskId} />
           <SandboxStatus />
           <ToolLog logs={toolLogs} />
         </div>

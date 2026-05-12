@@ -1,28 +1,39 @@
 # Changelog
 
+## v1.0.0-rc.1 (2026-05-12) — Release Candidate
+
+### Security
+- **Security Audit**: Full threat model and attack surface analysis (`SECURITY_AUDIT.md`)
+- **Security Policy**: Vulnerability reporting and safe usage guidance (`SECURITY.md`)
+- **Central Permission System**: `check_command`, `check_file_operation`, `check_network_access`, `check_browser_action`
+- **Security Events DB**: All denied/approval-required actions logged with severity
+- **SecurityPanel UI**: Real-time security events display
+- **Security Scan Script**: `scripts/security_scan.py` detects secrets, keys, forbidden files
+- **CI Security Job**: Automated scan on every push/PR
+- **Hardened Policies**: Pipe-to-shell blocked, package installs need approval, network commands flagged
+- **Termux Hardening**: Safe Mode enforced, extra command restrictions
+- **Docker Hardening**: Verified no-privileged, no-socket, non-root, resource limits
+
+### Added
+- `GET /api/security/events` - Security event log
+- `GET /api/tasks/{id}/security/events` - Per-task security events
+- `POST /api/security/check-command` - Pre-check commands
+- `POST /api/security/check-path` - Pre-check file paths
+- `GET /api/security/policies` - Active security policies
+
+---
+
 ## v0.10.0 (2026-05-12) — Termux Support
 
 ### Added
-- **Termux Mode**: Full support for running on Android via Termux
-- Platform detection module (`backend/app/platform/`)
+- Termux Mode with platform detection
+- Android/Termux setup and start scripts
 - `GET /api/platform/status` endpoint
-- `scripts/setup_termux.py` and `scripts/start_termux.py`
-- `setup-termux.sh` and `start-termux.sh` shell scripts
-- Safe Mode enforced automatically on Termux
-- Docker Sandbox disabled automatically on Termux
-- Browser Automation disabled by default on Termux
-- Extra command restrictions for Termux security
-- Remote Ollama support via `OLLAMA_BASE_URL` environment variable
-- `PLATFORM_MODE` config option (auto/desktop/termux)
-
-### Changed
-- Backend version updated to 0.9.0 → 0.10.0
-- Config now includes platform-specific settings
-
-### Security
-- Termux always runs in Safe Mode (commands need approval)
-- Package install commands (`pkg install`, `pip install`, `npm install -g`) require approval
-- Dangerous path operations blocked on Termux
+- Safe Mode forced on Termux
+- Docker/Browser disabled automatically on Termux
+- Mobile UI with responsive layout and bottom navigation
+- PWA support (manifest, service worker, offline fallback)
+- SettingsPanel with platform info and Termux banner
 
 ---
 
@@ -38,14 +49,8 @@
 - File Diff with pending/accept/reject flow
 - Code Review + Auto Fix
 - Agent Memory + Project RAG
-- SQLite persistence for all data
+- SQLite persistence
 - Real-time WebSocket streaming
 - GitHub Actions CI
 - One-command setup/start scripts
 - Tauri Desktop App support
-
-### Infrastructure
-- FastAPI backend (Python 3.11+)
-- Next.js 14 + React + TypeScript + Tailwind CSS
-- Docker Compose support
-- Cross-platform scripts (Windows/Linux/macOS)

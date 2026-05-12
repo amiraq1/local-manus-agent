@@ -1,70 +1,70 @@
-# Local Manus Agent v0.10.0
+# Local Manus Agent v1.0.0-rc.1
+
+> ⚠️ This is a **Release Candidate**. It is feature-complete for v1.0 but may contain issues discovered during testing.
 
 ## Overview
 
-This release adds full Termux (Android) support, allowing Local Manus Agent to run on mobile devices with appropriate security adaptations.
+First release candidate for v1.0. This release focuses on security hardening after the full feature set was completed in v0.9.0 and v0.10.0.
 
-## New: Termux Support
+## What's New (since v0.10.0)
 
-Local Manus Agent now detects when running inside Termux and automatically adapts:
+### Security Hardening
+- Central permission system with `allow/deny/require_approval` decisions
+- Security events database with severity tracking
+- Automated security scan in CI pipeline
+- Hardened command blocking (regex-based pattern matching)
+- Package install commands require explicit approval
+- Network commands flagged for review
+- Pipe-to-shell patterns blocked
+- SecurityPanel in frontend for monitoring
 
-- **Docker Sandbox**: Disabled (not available on Android)
-- **Browser Automation**: Disabled by default
-- **Safe Mode**: Always enforced (all commands need approval)
-- **Extra Security**: Package install commands require explicit approval
+### Documentation
+- `SECURITY.md` - Vulnerability reporting and safe usage
+- `SECURITY_AUDIT.md` - Threat model, attack surface, mitigations
 
-### Installation on Android
+## Installation
 
 ```bash
-# Install Termux from F-Droid (recommended)
-pkg update && pkg install python nodejs git
-
-git clone https://github.com/amiraq1/local-manus-agent
+git clone https://github.com/amiraq1/local-manus-agent.git
 cd local-manus-agent
-chmod +x setup-termux.sh start-termux.sh
-
-./setup-termux.sh
-./start-termux.sh
+python scripts/setup.py
+python scripts/start.py
 ```
 
-### Using Remote Ollama
-
-Since running large LLMs on a phone is impractical, connect to Ollama on your PC:
-
-```bash
-# On your PC: ollama serve (ensure it listens on 0.0.0.0)
-# On Termux:
-export OLLAMA_BASE_URL=http://<your-pc-ip>:11434
-./start-termux.sh
-```
-
-## Other Changes
-
-- Added `GET /api/platform/status` endpoint
-- Platform detection module for auto-configuration
-- Config: `PLATFORM_MODE`, `TERMUX_*` settings
-
-## Limitations on Termux
-
-- Docker Sandbox unavailable
-- Browser Automation unavailable by default
-- Large models may not fit in device memory
-- Performance depends on device hardware
-- Recommended: use remote Ollama
-
-## Security Notes
-
-- Safe Mode is always active on Termux
-- Commands like `pkg install`, `pip install`, `npm install -g` need approval
-- All standard safety checks still apply
-- Task workspace isolation is maintained
-
-## Upgrade from v0.9.0
-
-No breaking changes. Simply `git pull` and restart:
+## Upgrade from v0.10.0
 
 ```bash
 git pull
-python scripts/setup.py  # or ./setup-termux.sh on Android
-python scripts/start.py  # or ./start-termux.sh on Android
+# Database migrations are automatic (new tables created on startup)
+python scripts/start.py
 ```
+
+## Known Limitations
+
+- LLM prompt injection is mitigated but not fully prevented (Safe Mode recommended)
+- No API authentication (localhost-only assumption)
+- No rate limiting on endpoints
+- LiteRT-LM SDK not yet publicly available (Ollama fallback works)
+- Docker required for sandbox (graceful fallback without it)
+
+## Testing Checklist Before v1.0
+
+- [ ] Run full task in Safe Mode with approval flow
+- [ ] Run full task in Autonomous Mode
+- [ ] Verify security scan passes on clean repo
+- [ ] Test on Termux (Android)
+- [ ] Test PWA install on mobile
+- [ ] Test Docker Sandbox with real Docker
+- [ ] Verify all API endpoints respond correctly
+- [ ] Test WebSocket agent flow end-to-end with Ollama
+- [ ] Review all security events are logged properly
+- [ ] Confirm no secrets in repo
+
+## Security Notes
+
+- All file operations confined to task workspaces
+- Dangerous commands blocked by default
+- Safe Mode requires user approval for shell commands
+- Docker sandbox runs non-root with all capabilities dropped
+- External URLs blocked in browser automation by default
+- Security events logged for audit trail

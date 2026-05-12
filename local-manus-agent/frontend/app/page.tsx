@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import ChatPanel from "@/components/ChatPanel";
 import PlanPanel from "@/components/PlanPanel";
 import FileExplorer from "@/components/FileExplorer";
@@ -15,6 +16,8 @@ import LLMStatusPanel from "@/components/LLMStatusPanel";
 import ArtifactsPanel from "@/components/ArtifactsPanel";
 import MemoryPanel from "@/components/MemoryPanel";
 import AgentsPanel from "@/components/AgentsPanel";
+import MobileNav, { MobileTab } from "@/components/MobileNav";
+import SettingsPanel from "@/components/SettingsPanel";
 import { useAgent } from "@/lib/useAgent";
 
 export default function Home() {
@@ -43,53 +46,46 @@ export default function Home() {
     rejectChange,
   } = useAgent();
 
+  const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
+
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <header className="border-b border-dark-700 px-6 py-3 flex items-center gap-3">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm">M</span>
+      <header className="border-b border-dark-700 px-4 md:px-6 py-2 md:py-3 flex items-center gap-2 md:gap-3">
+        <div className="w-7 h-7 md:w-8 md:h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
+          <span className="text-white font-bold text-xs md:text-sm">M</span>
         </div>
-        <h1 className="text-lg font-semibold text-dark-100">Local Manus Agent</h1>
-        <span className="text-xs text-dark-500 ml-2">v2.2</span>
+        <h1 className="text-sm md:text-lg font-semibold text-dark-100 truncate">Local Manus Agent</h1>
 
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-2 md:gap-4">
           <ModeSwitch mode={mode} onSwitch={switchMode} />
           {isRunning && (
-            <span className="flex items-center gap-2 text-sm text-primary">
+            <span className="flex items-center gap-1.5 text-xs md:text-sm text-primary">
               <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              Working...
+              <span className="hidden sm:inline">Working...</span>
             </span>
           )}
         </div>
       </header>
 
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left: History + Chat + Plan */}
+      {/* Desktop Layout (md+) */}
+      <div className="flex-1 hidden md:flex overflow-hidden">
+        {/* Left */}
         <div className="w-[440px] flex flex-col border-r border-dark-700">
-          <TaskHistory
-            tasks={taskHistory}
-            currentTaskId={currentTaskId}
-            onSelect={loadTask}
-          />
+          <TaskHistory tasks={taskHistory} currentTaskId={currentTaskId} onSelect={loadTask} />
           <ChatPanel messages={messages} isRunning={isRunning} onSend={sendTask} />
           <PlanPanel plan={plan} />
           <AgentsPanel steps={agentSteps} />
         </div>
 
-        {/* Center: Preview + Diff */}
+        {/* Center */}
         <div className="flex-1 flex flex-col">
           <PreviewPanel url={previewUrl} />
-          <FileDiffPanel
-            changes={fileChanges}
-            onAccept={acceptChange}
-            onReject={rejectChange}
-          />
+          <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
         </div>
 
-        {/* Right: Files + Browser + Sandbox + Tool Log */}
-        <div className="w-[320px] flex flex-col border-l border-dark-700">
+        {/* Right */}
+        <div className="w-[320px] flex flex-col border-l border-dark-700 overflow-y-auto">
           <FileExplorer files={files} onRefresh={refreshFiles} />
           <BrowserPanel state={browserState} onClose={closeBrowser} />
           <ArtifactsPanel taskId={currentTaskId} />
@@ -99,6 +95,51 @@ export default function Home() {
           <ToolLog logs={toolLogs} />
         </div>
       </div>
+
+      {/* Mobile Layout (< md) */}
+      <div className="flex-1 md:hidden flex flex-col overflow-hidden pb-14">
+        {mobileTab === "chat" && (
+          <div className="flex-1 flex flex-col">
+            <ChatPanel messages={messages} isRunning={isRunning} onSend={sendTask} />
+            <PlanPanel plan={plan} />
+          </div>
+        )}
+        {mobileTab === "files" && (
+          <div className="flex-1 flex flex-col overflow-y-auto">
+            <FileExplorer files={files} onRefresh={refreshFiles} />
+            <PreviewPanel url={previewUrl} />
+            <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
+          </div>
+        )}
+        {mobileTab === "agents" && (
+          <div className="flex-1 flex flex-col overflow-y-auto">
+            <AgentsPanel steps={agentSteps} />
+            <ToolLog logs={toolLogs} />
+            <BrowserPanel state={browserState} onClose={closeBrowser} />
+          </div>
+        )}
+        {mobileTab === "artifacts" && (
+          <div className="flex-1 overflow-y-auto">
+            <ArtifactsPanel taskId={currentTaskId} />
+            <TaskHistory tasks={taskHistory} currentTaskId={currentTaskId} onSelect={loadTask} />
+          </div>
+        )}
+        {mobileTab === "memory" && (
+          <div className="flex-1 overflow-y-auto">
+            <MemoryPanel taskId={currentTaskId} />
+          </div>
+        )}
+        {mobileTab === "settings" && (
+          <div className="flex-1 overflow-y-auto">
+            <SettingsPanel />
+            <SandboxStatus />
+            <LLMStatusPanel />
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Bottom Nav */}
+      <MobileNav activeTab={mobileTab} onTabChange={setMobileTab} />
 
       {/* Approval Dialog */}
       {pendingApproval && (

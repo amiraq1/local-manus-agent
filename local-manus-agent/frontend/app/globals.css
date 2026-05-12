@@ -50,4 +50,8 @@
       text-dark-100 placeholder-dark-500 focus:outline-none focus:border-primary
       transition-colors w-full;
   }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }

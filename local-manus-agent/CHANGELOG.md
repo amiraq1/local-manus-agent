@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Fixed Termux setup flow
+- Added Termux-specific backend requirements
+- Added Next.js Android SWC patch
+- Improved `start_termux.py` lifecycle and cleanup behavior
+- Added CORS allowance for `127.0.0.1:3000`
+- Verified Termux backend health and frontend `200` responses
+
 ## v1.1.0 (2026-05-12) — Usability & Productivity
 
 ### Added

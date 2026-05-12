@@ -49,14 +49,20 @@ cd local-manus-agent
 chmod +x setup-termux.sh start-termux.sh
 ./setup-termux.sh
 ./start-termux.sh
-# افتح: http://127.0.0.1:3000
 ```
 
 للـ LLM، استخدم Ollama على كمبيوتر:
 ```bash
 export OLLAMA_BASE_URL=http://<pc-ip>:11434
 ```
-```
+
+ملاحظات مهمة حول دعم Termux:
+
+- `setup-termux.sh` أصبح سكربت `sh` مباشرًا، وليس مجرد wrapper يستدعي منسّق Python لكل الخطوات.
+- تثبيت بايثون في Termux يستخدم `backend/requirements-termux.txt` بدل `backend/requirements.txt` لأن `Playwright` غير مدعوم هناك.
+- السكربت يطبّق رقعة Next.js / SWC تلقائيًا عبر `scripts/patch_next_termux.py` بعد `npm install` حتى يعمل `next dev` على Android/Termux.
+- الواجهة تفتح على `http://127.0.0.1:3000`.
+- فحص صحة الخلفية متاح على `http://127.0.0.1:8000/api/health`.
 
 ## Docker Sandbox
 

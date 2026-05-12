@@ -17,6 +17,7 @@
     "react-dom": "^18.3.0"
   },
   "devDependencies": {
+    "@next/swc-wasm-nodejs": "14.2.33",
     "@tauri-apps/cli": "^1.6.0",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",

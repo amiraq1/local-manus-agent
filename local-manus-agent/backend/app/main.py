@@ -445,6 +445,61 @@ async def api_select_preset(body: dict):
     return {"error": "Unhandled preset"}
 
 
+# --- Goals ---
+
+@app.post("/api/goals/analyze")
+async def api_analyze_goal(body: dict):
+    """Analyze a goal and recommend a template."""
+    from app.goals.goal_analyzer import analyze_goal
+    message = body.get("message", "")
+    if not message:
+        return {"error": "message is required"}
+    analysis = analyze_goal(message)
+    return {
+        "project_type": analysis.project_type,
+        "recommended_template": analysis.recommended_template,
+        "variables": analysis.variables,
+        "confidence": analysis.confidence,
+        "reasoning": analysis.reasoning,
+    }
+
+
+@app.post("/api/goals/run")
+async def api_run_goal(body: dict):
+    """Run a goal end-to-end (non-streaming, returns final result)."""
+    from app.goals.goal_runner import run_goal
+    message = body.get("message", "")
+    mode = body.get("mode", "safe")
+    if not message:
+        return {"error": "message is required"}
+
+    result = None
+    async for event in run_goal(message, mode):
+        result = event  # Keep last event
+
+    return result or {"error": "No result"}
+
+
+@app.get("/api/goals/{task_id}/status")
+async def api_goal_status(task_id: str):
+    """Get goal execution status."""
+    task = db.get_task(task_id)
+    if not task:
+        return {"error": "Task not found"}
+
+    from app.workspace.manager import get_task_workspace
+    task_ws = get_task_workspace(task_id)
+    has_export = (task_ws / "artifacts").exists() and any((task_ws / "artifacts").glob("task-*.zip"))
+
+    return {
+        "task_id": task_id,
+        "status": task.get("status", "unknown"),
+        "message": task.get("message", ""),
+        "summary": task.get("summary", ""),
+        "export_ready": has_export,
+    }
+
+
 # --- Templates ---
 
 @app.get("/api/templates")

@@ -19,6 +19,7 @@ import MemoryPanel from "@/components/MemoryPanel";
 import AgentsPanel from "@/components/AgentsPanel";
 import ExportPanel from "@/components/ExportPanel";
 import MobileNav, { MobileTab } from "@/components/MobileNav";
+import GoalModePanel from "@/components/GoalModePanel";
 import SettingsPanel from "@/components/SettingsPanel";
 import SecurityPanel from "@/components/SecurityPanel";
 import ModelManagerPanel from "@/components/ModelManagerPanel";
@@ -105,6 +106,7 @@ export default function Home() {
       <div className="flex-1 md:hidden flex flex-col overflow-hidden pb-14">
         {mobileTab === "chat" && (
           <div className="flex-1 flex flex-col">
+            <GoalModePanel />
             <ChatPanel messages={messages} isRunning={isRunning} onSend={sendTask} />
             <PlanPanel plan={plan} />
           </div>

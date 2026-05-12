@@ -207,11 +207,24 @@ Preview server يعمل محليًا (ليس داخل sandbox) لأن:
 - [x] Browser Automation
 - [x] File Diff System
 - [x] Code Review + Auto Fix
-- [x] **Docker Sandbox**
-- [ ] تكامل LiteRT-LM
-- [ ] محرر كود مدمج
-- [ ] دعم Git
+- [x] Docker Sandbox
+- [x] Multi-Agent Architecture
+- [x] Memory / RAG
+- [x] Termux Support
+- [x] Mobile UI + PWA
+- [x] Security Hardening
+- [ ] تكامل LiteRT-LM الكامل
+- [ ] دعم Git (commit, push)
+- [ ] نظام Plugins
 - [ ] تصدير مشاريع كـ ZIP
+
+## مواد إضافية
+
+- [Landing Page](website/index.html) — صفحة عرض المشروع
+- [Demo Script](DEMO_SCRIPT.md) — سيناريو فيديو تعريفي
+- [Pitch](PITCH.md) — عرض تقديمي للمشروع
+- [Security Audit](SECURITY_AUDIT.md) — تقرير الأمان
+- [Changelog](CHANGELOG.md) — سجل التغييرات
 
 ## الترخيص
 

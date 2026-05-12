@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Manus Agent — AI Development Agent</title>
+  <meta name="description" content="Local autonomous AI agent powered by local models. No cloud APIs needed.">
+  <style>
+    :root { --primary: #6366f1; --bg: #020617; --surface: #0f172a; --border: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #818cf8; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* Hero */
+    .hero { text-align: center; padding: 100px 24px 80px; }
+    .hero-badge { display: inline-block; background: rgba(99,102,241,0.15); color: var(--accent); padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 24px; border: 1px solid rgba(99,102,241,0.3); }
+    .hero h1 { font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 800; margin-bottom: 16px; background: linear-gradient(135deg, #e2e8f0, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 1.2rem; color: var(--muted); max-width: 600px; margin: 0 auto 32px; }
+    .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn { padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+    .btn-outline { border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--primary); background: rgba(99,102,241,0.05); }
+
+    /* Features */
+    .section { padding: 80px 24px; }
+    .section-title { text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 12px; }
+    .section-sub { text-align: center; color: var(--muted); margin-bottom: 48px; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; transition: border-color 0.2s; }
+    .card:hover { border-color: var(--primary); }
+    .card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .card p { color: var(--muted); font-size: 0.9rem; }
+
+    /* Architecture */
+    .arch { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px; text-align: center; }
+    .arch-flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; font-size: 0.85rem; }
+    .arch-step { background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); padding: 8px 16px; border-radius: 6px; }
+    .arch-arrow { color: var(--muted); }
+
+    /* Install */
+    .code-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; font-family: 'SF Mono', monospace; font-size: 0.85rem; overflow-x: auto; text-align: left; color: #a5b4fc; }
+
+    /* Footer */
+    footer { text-align: center; padding: 40px 24px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--border); }
+
+    @media (max-width: 640px) { .hero { padding: 60px 16px 40px; } .section { padding: 48px 16px; } }
+  </style>
+</head>
+<body>
+
+<!-- Hero -->
+<section class="hero">
+  <span class="hero-badge">v1.0.0 — Stable Release</span>
+  <h1>Local Manus Agent</h1>
+  <p>Local autonomous AI agent inspired by Manus, powered by local models. Plan, code, review, and verify — all on your machine.</p>
+  <div class="buttons">
+    <a href="https://github.com/amiraq1/local-manus-agent" class="btn btn-primary">GitHub</a>
+    <a href="https://github.com/amiraq1/local-manus-agent/releases/tag/v1.0.0" class="btn btn-outline">Download v1.0.0</a>
+    <a href="#install" class="btn btn-outline">Quick Start</a>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Features</h2>
+    <p class="section-sub">Everything you need for autonomous local development</p>
+    <div class="grid">
+      <div class="card"><div class="card-icon">🧠</div><h3>Multi-Agent</h3><p>6 specialized agents coordinated by an orchestrator: Planner, Coder, Reviewer, Security, Browser, Memory.</p></div>
+      <div class="card"><div class="card-icon">🤖</div><h3>Local LLM</h3><p>Ollama with qwen2.5-coder:7b. No cloud APIs, no data leaves your machine. LiteRT-LM ready.</p></div>
+      <div class="card"><div class="card-icon">🐳</div><h3>Docker Sandbox</h3><p>Commands run in isolated containers. Non-root, no network, memory limited, timeout enforced.</p></div>
+      <div class="card"><div class="card-icon">🌐</div><h3>Browser Automation</h3><p>Headless Chromium verifies output visually. Screenshots, element checks, JS evaluation.</p></div>
+      <div class="card"><div class="card-icon">🧠</div><h3>Memory / RAG</h3><p>File indexing, keyword search, context retrieval. The agent remembers decisions and project structure.</p></div>
+      <div class="card"><div class="card-icon">📱</div><h3>Termux Support</h3><p>Runs on Android via Termux with automatic platform detection and security adaptations.</p></div>
+      <div class="card"><div class="card-icon">📲</div><h3>PWA</h3><p>Installable as a web app on mobile. Responsive UI with bottom navigation for small screens.</p></div>
+      <div class="card"><div class="card-icon">🔒</div><h3>Security Hardened</h3><p>Permission system, audit trail, blocked patterns, Safe Mode with approval flow.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Architecture</h2>
+    <p class="section-sub">Multi-agent pipeline with specialized roles</p>
+    <div class="arch">
+      <div class="arch-flow">
+        <span class="arch-step">MemoryAgent</span><span class="arch-arrow">→</span>
+        <span class="arch-step">PlannerAgent</span><span class="arch-arrow">→</span>
+        <span class="arch-step">SecurityAgent</span><span class="arch-arrow">→</span>
+        <span class="arch-step">CoderAgent</span><span class="arch-arrow">→</span>
+        <span class="arch-step">ReviewerAgent</span><span class="arch-arrow">→</span>
+        <span class="arch-step">BrowserAgent</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Install -->
+<section class="section" id="install">
+  <div class="container">
+    <h2 class="section-title">Quick Start</h2>
+    <p class="section-sub">Up and running in 3 commands</p>
+    <div class="code-block">
+<pre>git clone https://github.com/amiraq1/local-manus-agent.git
+cd local-manus-agent
+python scripts/setup.py
+python scripts/start.py
+
+# Open http://localhost:3000</pre>
+    </div>
+  </div>
+</section>
+
+<!-- Termux -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Android / Termux</h2>
+    <p class="section-sub">Full support on mobile with Termux Lite Mode</p>
+    <div class="code-block">
+<pre>pkg update && pkg install python nodejs git
+git clone https://github.com/amiraq1/local-manus-agent
+cd local-manus-agent
+./setup-termux.sh && ./start-termux.sh</pre>
+    </div>
+  </div>
+</section>
+
+<!-- Security -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Security First</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div class="card"><h3>Safe Mode</h3><p>Commands need your approval before execution</p></div>
+      <div class="card"><h3>Workspace Isolation</h3><p>Each task gets its own directory, no cross-access</p></div>
+      <div class="card"><h3>Audit Trail</h3><p>All security events logged with severity</p></div>
+      <div class="card"><h3>No Cloud</h3><p>Everything runs locally, your data stays yours</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Roadmap -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Roadmap</h2>
+    <p class="section-sub">What's coming next</p>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+      <div class="card"><h3>Git Integration</h3><p>Commit, push, branch from the agent</p></div>
+      <div class="card"><h3>Plugin System</h3><p>Extend with custom tools and agents</p></div>
+      <div class="card"><h3>Multi-Model</h3><p>Different models per agent role</p></div>
+      <div class="card"><h3>Project Export</h3><p>Download workspace as ZIP</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>Local Manus Agent v1.0.0 — MIT License — <a href="https://github.com/amiraq1/local-manus-agent">GitHub</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

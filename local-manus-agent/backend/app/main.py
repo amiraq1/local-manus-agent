@@ -308,6 +308,50 @@ async def api_platform_status():
     return get_platform_status()
 
 
+# --- Security ---
+
+@app.get("/api/security/events")
+async def api_security_events(limit: int = 50):
+    """Get recent security events."""
+    from app.security.audit_log import get_security_events
+    return {"events": get_security_events(limit=limit)}
+
+
+@app.get("/api/tasks/{task_id}/security/events")
+async def api_task_security_events(task_id: str):
+    """Get security events for a task."""
+    from app.security.audit_log import get_security_events
+    return {"events": get_security_events(task_id=task_id)}
+
+
+@app.post("/api/security/check-command")
+async def api_check_command(body: dict):
+    """Check if a command would be allowed."""
+    from app.security.permissions import check_command
+    command = body.get("command", "")
+    task_id = body.get("task_id", "")
+    decision, reason = check_command(task_id, command)
+    return {"command": command, "decision": decision.value, "reason": reason}
+
+
+@app.post("/api/security/check-path")
+async def api_check_path(body: dict):
+    """Check if a file path would be allowed."""
+    from app.security.permissions import check_file_operation
+    path = body.get("path", "")
+    operation = body.get("operation", "read")
+    task_id = body.get("task_id", "")
+    decision, reason = check_file_operation(task_id, path, operation)
+    return {"path": path, "operation": operation, "decision": decision.value, "reason": reason}
+
+
+@app.get("/api/security/policies")
+async def api_security_policies():
+    """Get active security policies."""
+    from app.security.policies import get_active_policies
+    return get_active_policies()
+
+
 @app.get("/api/llm/status")
 async def api_llm_status():
     """Get LLM provider status."""

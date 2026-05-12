@@ -373,6 +373,78 @@ async def api_llm_test():
         return {"success": False, "error": str(e)}
 
 
+@app.get("/api/llm/presets")
+async def api_llm_presets():
+    """Get available LLM presets."""
+    from config import LLM_PRESETS, ACTIVE_LLM_PRESET, GEMMA_E2B_LITERT_MODEL_PATH
+    presets = []
+    for key, preset in LLM_PRESETS.items():
+        p = {**preset, "id": key, "active": key == ACTIVE_LLM_PRESET}
+        # Check model availability for litert presets
+        if preset["provider"] == "litert":
+            model_path = ""
+            if key == "gemma-e2b-litert":
+                model_path = GEMMA_E2B_LITERT_MODEL_PATH
+            elif key == "litert-custom":
+                from config import LITERT_CONFIG
+                model_path = LITERT_CONFIG.get("model_path", "")
+            p["model_path"] = model_path
+            p["model_available"] = bool(model_path and Path(model_path).exists())
+        else:
+            p["model_available"] = True
+        presets.append(p)
+    return {"presets": presets, "active": ACTIVE_LLM_PRESET}
+
+
+@app.post("/api/llm/select-preset")
+async def api_select_preset(body: dict):
+    """Select an LLM preset."""
+    import config
+    from app.llm.factory import reset_provider
+
+    preset_id = body.get("preset", "")
+    if preset_id not in config.LLM_PRESETS:
+        return {"error": f"Unknown preset: {preset_id}. Available: {list(config.LLM_PRESETS.keys())}"}
+
+    preset = config.LLM_PRESETS[preset_id]
+
+    if preset_id == "ollama":
+        config.LLM_PROVIDER = "ollama"
+        config.ACTIVE_LLM_PRESET = "ollama"
+        reset_provider()
+        return {"success": True, "preset": preset_id, "provider": "ollama"}
+
+    elif preset_id == "gemma-e2b-litert":
+        model_path = config.GEMMA_E2B_LITERT_MODEL_PATH
+        if not model_path or not Path(model_path).exists():
+            return {
+                "success": False,
+                "error": "Gemma E2B model not found",
+                "message": preset.get("download_instructions", ""),
+                "hint": "Set GEMMA_E2B_LITERT_MODEL_PATH in config.py to the downloaded .litertlm file",
+            }
+        config.LLM_PROVIDER = "litert"
+        config.LITERT_CONFIG["model_path"] = model_path
+        config.ACTIVE_LLM_PRESET = "gemma-e2b-litert"
+        reset_provider()
+        return {"success": True, "preset": preset_id, "provider": "litert", "model_path": model_path}
+
+    elif preset_id == "litert-custom":
+        model_path = config.LITERT_CONFIG.get("model_path", "")
+        if not model_path or not Path(model_path).exists():
+            return {
+                "success": False,
+                "error": "Custom LiteRT model not found",
+                "hint": "Set LITERT_CONFIG['model_path'] in config.py",
+            }
+        config.LLM_PROVIDER = "litert"
+        config.ACTIVE_LLM_PRESET = "litert-custom"
+        reset_provider()
+        return {"success": True, "preset": preset_id, "provider": "litert", "model_path": model_path}
+
+    return {"error": "Unhandled preset"}
+
+
 # --- Memory & RAG ---
 
 @app.post("/api/tasks/{task_id}/memory")

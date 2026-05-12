@@ -9,21 +9,40 @@ interface LLMStatus {
   model: string | null;
   available: boolean;
   fallback_used: boolean;
-  fallback_allowed: boolean;
   error: string | null;
+}
+
+interface Preset {
+  id: string;
+  name: string;
+  provider: string;
+  description: string;
+  active: boolean;
+  model_available: boolean;
+  model_path?: string;
+  download_instructions?: string;
 }
 
 const API = "http://localhost:8000/api";
 
 export default function LLMStatusPanel() {
   const [status, setStatus] = useState<LLMStatus | null>(null);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [activePreset, setActivePreset] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [selectMsg, setSelectMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/llm/status`);
-      setStatus(await res.json());
+      const [sRes, pRes] = await Promise.all([
+        fetch(`${API}/llm/status`),
+        fetch(`${API}/llm/presets`),
+      ]);
+      setStatus(await sRes.json());
+      const pData = await pRes.json();
+      setPresets(pData.presets || []);
+      setActivePreset(pData.active || "");
     } catch { /* ignore */ }
   }, []);
 
@@ -36,10 +55,30 @@ export default function LLMStatusPanel() {
       const res = await fetch(`${API}/llm/test`, { method: "POST" });
       const data = await res.json();
       setTestResult(data.success ? `✓ ${data.response}` : `✗ ${data.error}`);
-    } catch (e) {
+    } catch {
       setTestResult("✗ Connection failed");
     }
     setTesting(false);
+  };
+
+  const handleSelect = async (presetId: string) => {
+    setSelectMsg(null);
+    try {
+      const res = await fetch(`${API}/llm/select-preset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preset: presetId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSelectMsg(`✓ Switched to ${presetId}`);
+        load();
+      } else {
+        setSelectMsg(data.error || data.message || data.hint || "Failed");
+      }
+    } catch {
+      setSelectMsg("Connection failed");
+    }
   };
 
   if (!status) return null;
@@ -54,38 +93,50 @@ export default function LLMStatusPanel() {
           <RefreshCw size={11} />
         </button>
       </div>
-      <div className="p-2 space-y-1 text-xs">
+      <div className="p-2 space-y-2 text-xs">
+        {/* Status */}
         <div className="flex items-center gap-2">
-          {status.available ? (
-            <CheckCircle size={11} className="text-green-400" />
-          ) : (
-            <XCircle size={11} className="text-red-400" />
-          )}
-          <span className="text-dark-300">
-            {status.active_provider || status.configured_provider}
-            {status.model ? ` (${status.model})` : ""}
-          </span>
+          {status.available ? <CheckCircle size={11} className="text-green-400" /> : <XCircle size={11} className="text-red-400" />}
+          <span className="text-dark-300">{status.active_provider}{status.model ? ` (${status.model})` : ""}</span>
         </div>
-
         {status.fallback_used && (
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={11} className="text-yellow-400" />
-            <span className="text-yellow-400">Fallback active</span>
+          <div className="flex items-center gap-1 text-yellow-400">
+            <AlertTriangle size={10} /> <span>Fallback active</span>
           </div>
         )}
 
-        {status.error && (
-          <p className="text-red-400 text-[10px] truncate">{status.error}</p>
+        {/* Preset selector */}
+        <div className="space-y-1 pt-1 border-t border-dark-700">
+          <p className="text-[10px] text-dark-500">Model Preset:</p>
+          {presets.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => handleSelect(p.id)}
+              className={`w-full text-left px-2 py-1 rounded text-[11px] flex items-center gap-1.5 ${
+                p.id === activePreset ? "bg-primary/10 border border-primary/30 text-primary" : "bg-dark-800 text-dark-300 hover:bg-dark-700"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${p.model_available ? "bg-green-400" : "bg-dark-500"}`} />
+              <span className="flex-1 truncate">{p.name}</span>
+              {p.id === activePreset && <span className="text-[9px]">active</span>}
+            </button>
+          ))}
+        </div>
+
+        {selectMsg && (
+          <p className={`text-[10px] ${selectMsg.startsWith("✓") ? "text-green-400" : "text-yellow-400"}`}>
+            {selectMsg}
+          </p>
         )}
 
+        {/* Test */}
         <button
           onClick={handleTest}
           disabled={testing}
-          className="w-full mt-1 px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px] disabled:opacity-50"
+          className="w-full px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px] disabled:opacity-50"
         >
           {testing ? "Testing..." : "Test Model"}
         </button>
-
         {testResult && (
           <p className={`text-[10px] truncate ${testResult.startsWith("✓") ? "text-green-400" : "text-red-400"}`}>
             {testResult}

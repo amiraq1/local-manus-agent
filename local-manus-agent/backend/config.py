@@ -90,3 +90,36 @@ TERMUX_DISABLE_DOCKER = True
 TERMUX_BROWSER_MODE = "disabled"  # disabled, chromium
 TERMUX_CHROMIUM_PATH = ""
 TERMUX_HOST = "127.0.0.1"
+
+# LLM Presets
+LLM_PRESETS = {
+    "ollama": {
+        "name": "Ollama (qwen2.5-coder:7b)",
+        "provider": "ollama",
+        "description": "Local Ollama instance with qwen2.5-coder:7b",
+    },
+    "gemma-e2b-litert": {
+        "name": "Gemma E2B LiteRT-LM",
+        "provider": "litert",
+        "model_path": "",  # Set via GEMMA_E2B_LITERT_MODEL_PATH or auto-detect
+        "description": "Google Gemma 3n E2B int4 via LiteRT-LM",
+        "download_instructions": (
+            "Download from Hugging Face:\n"
+            "  huggingface-cli login\n"
+            "  huggingface-cli download google/gemma-3n-E2B-it-litert-lm "
+            "gemma-3n-E2B-it-int4.litertlm --local-dir models/gemma-e2b"
+        ),
+    },
+    "litert-custom": {
+        "name": "LiteRT-LM (Custom Path)",
+        "provider": "litert",
+        "model_path": "",
+        "description": "Custom LiteRT-LM model from LITERT_CONFIG.model_path",
+    },
+}
+
+# Gemma E2B specific path (set this to your downloaded model)
+GEMMA_E2B_LITERT_MODEL_PATH = ""
+
+# Active preset
+ACTIVE_LLM_PRESET = "ollama"

@@ -11,6 +11,7 @@ import ApprovalDialog from "@/components/ApprovalDialog";
 import ModeSwitch from "@/components/ModeSwitch";
 import BrowserPanel from "@/components/BrowserPanel";
 import FileDiffPanel from "@/components/FileDiffPanel";
+import TemplatesPanel from "@/components/TemplatesPanel";
 import SandboxStatus from "@/components/SandboxStatus";
 import LLMStatusPanel from "@/components/LLMStatusPanel";
 import ArtifactsPanel from "@/components/ArtifactsPanel";
@@ -111,6 +112,7 @@ export default function Home() {
         {mobileTab === "files" && (
           <div className="flex-1 flex flex-col overflow-y-auto">
             <FileExplorer files={files} onRefresh={refreshFiles} />
+            <TemplatesPanel taskId={currentTaskId} onGenerated={refreshFiles} />
             <PreviewPanel url={previewUrl} />
             <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
           </div>

@@ -445,6 +445,35 @@ async def api_select_preset(body: dict):
     return {"error": "Unhandled preset"}
 
 
+# --- Templates ---
+
+@app.get("/api/templates")
+async def api_list_templates(category: str = ""):
+    """List available project templates."""
+    from app.templates.registry import list_templates
+    return {"templates": list_templates(category)}
+
+
+@app.get("/api/templates/{template_id}")
+async def api_get_template(template_id: str):
+    """Get template details."""
+    from app.templates.registry import get_template
+    t = get_template(template_id)
+    if not t:
+        return {"error": f"Template not found: {template_id}"}
+    return {"id": t["id"], "name": t["name"], "description": t["description"],
+            "category": t["category"], "variables": t["variables"],
+            "file_count": len(t["files"]), "files": list(t["files"].keys())}
+
+
+@app.post("/api/tasks/{task_id}/templates/{template_id}/generate")
+async def api_generate_template(task_id: str, template_id: str, body: dict = {}):
+    """Generate project from template."""
+    from app.templates.generator import generate_from_template
+    variables = body.get("variables", {})
+    return generate_from_template(task_id, template_id, variables)
+
+
 # --- Export ---
 
 @app.post("/api/tasks/{task_id}/export")

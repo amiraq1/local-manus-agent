@@ -13,6 +13,7 @@ import FileDiffPanel from "@/components/FileDiffPanel";
 import SandboxStatus from "@/components/SandboxStatus";
 import ArtifactsPanel from "@/components/ArtifactsPanel";
 import MemoryPanel from "@/components/MemoryPanel";
+import AgentsPanel from "@/components/AgentsPanel";
 import { useAgent } from "@/lib/useAgent";
 
 export default function Home() {
@@ -29,6 +30,7 @@ export default function Home() {
     currentTaskId,
     browserState,
     fileChanges,
+    agentSteps,
     sendTask,
     approveCommand,
     rejectCommand,
@@ -72,6 +74,7 @@ export default function Home() {
           />
           <ChatPanel messages={messages} isRunning={isRunning} onSend={sendTask} />
           <PlanPanel plan={plan} />
+          <AgentsPanel steps={agentSteps} />
         </div>
 
         {/* Center: Preview + Diff */}

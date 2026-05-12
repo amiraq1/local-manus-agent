@@ -46,6 +46,7 @@ export function useAgent() {
     lastAction: null,
   });
   const [fileChanges, setFileChanges] = useState<FileChange[]>([]);
+  const [agentSteps, setAgentSteps] = useState<Array<{agent: string; phase: string; status: "running" | "completed" | "error" | "skipped"; summary: string}>>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   const connectWs = useCallback(() => {
@@ -152,6 +153,20 @@ export function useAgent() {
           }
         }
 
+        // Track agent steps from multi-agent events
+        if ((event as Record<string, unknown>).event_type === "agent_step" || (event as Record<string, unknown>).agent) {
+          const agent = (event as Record<string, unknown>).agent as string;
+          const status = (event as Record<string, unknown>).status as string;
+          if (agent && status) {
+            setAgentSteps((prev) => [...prev, {
+              agent,
+              phase: phase,
+              status: status as "running" | "completed" | "error" | "skipped",
+              summary: (event.content as string) || "",
+            }]);
+          }
+        }
+
         // Track browser state from tool logs
         if (event.tool_log) {
           const log = event.tool_log as Record<string, unknown>;
@@ -246,6 +261,7 @@ export function useAgent() {
       setPlan([]);
       setToolLogs([]);
       setPendingApproval(null);
+      setAgentSteps([]);
 
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         connectWs();
@@ -428,6 +444,7 @@ export function useAgent() {
     currentTaskId,
     browserState,
     fileChanges,
+    agentSteps,
     sendTask,
     approveCommand,
     rejectCommand,

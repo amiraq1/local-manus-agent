@@ -151,6 +151,19 @@ def init_db():
 
             CREATE INDEX IF NOT EXISTS idx_artifacts_task ON artifacts(task_id);
             CREATE INDEX IF NOT EXISTS idx_artifacts_type ON artifacts(type);
+
+            CREATE TABLE IF NOT EXISTS agent_steps (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                agent_name TEXT NOT NULL,
+                phase TEXT NOT NULL,
+                input_summary TEXT,
+                output_summary TEXT,
+                status TEXT,
+                created_at REAL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_agent_steps_task ON agent_steps(task_id);
         """)
 
 

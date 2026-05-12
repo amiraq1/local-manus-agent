@@ -1,4 +1,8 @@
-"""Main Agent - orchestrates Plan → Act → Observe → Review → Fix → Final cycle."""
+"""Main Agent - orchestrates Plan → Act → Observe → Review → Fix → Final cycle.
+
+Now uses Multi-Agent Architecture via Orchestrator by default.
+Falls back to legacy single-agent flow if orchestrator fails.
+"""
 import asyncio
 from typing import AsyncGenerator, Callable, Optional
 
@@ -10,6 +14,9 @@ from app.tools.diff_tools import set_diff_task_id
 from app.workspace.manager import set_current_task_id
 from app import database as db
 from config import MAX_STEPS, MAX_RETRIES
+
+# Use multi-agent by default
+USE_MULTI_AGENT = True
 
 
 class Agent:
@@ -32,7 +39,8 @@ class Agent:
     async def run(self, task: str) -> AsyncGenerator[dict, None]:
         """Run the agent on a task, yielding events for real-time streaming.
 
-        Follows: Plan → Act → Observe → Review → Fix → Final
+        Uses Multi-Agent Architecture (Orchestrator) by default.
+        Falls back to legacy single-agent flow if USE_MULTI_AGENT is False.
 
         Args:
             task: User's task description.
@@ -40,6 +48,48 @@ class Agent:
         Yields:
             Event dictionaries for each phase of execution.
         """
+        # Multi-Agent path
+        if USE_MULTI_AGENT:
+            async for event in self._run_multi_agent(task):
+                yield event
+            return
+
+        # Legacy single-agent path (fallback)
+        async for event in self._run_legacy(task):
+            yield event
+
+    async def _run_multi_agent(self, task: str) -> AsyncGenerator[dict, None]:
+        """Run via the multi-agent orchestrator."""
+        from app.agents.orchestrator import Orchestrator
+
+        orchestrator = Orchestrator()
+
+        async for event in orchestrator.run(self.task_id, task, self.mode):
+            # Convert orchestrator events to legacy format for WebSocket compatibility
+            if event.get("type") == "agent_step":
+                yield {
+                    "phase": event.get("phase", ""),
+                    "content": f"[{event['agent']}] {event.get('summary', event.get('status', ''))}",
+                    "agent": event.get("agent"),
+                    "status": event.get("status"),
+                    "event_type": "agent_step",
+                }
+            elif event.get("type") == "plan_ready":
+                yield {
+                    "phase": "plan_ready",
+                    "content": f"Plan created with {len(event.get('plan', []))} steps",
+                    "plan": event.get("plan", []),
+                }
+            elif event.get("type") == "task_summary":
+                yield {
+                    "phase": "completed",
+                    "content": event.get("summary", "Task completed."),
+                    "artifacts": event.get("artifacts", []),
+                    "errors": event.get("errors", []),
+                }
+
+    async def _run_legacy(self, task: str) -> AsyncGenerator[dict, None]:
+        """Legacy single-agent execution flow."""
         self.task = task
         self.results = []
         self.tool_log = []

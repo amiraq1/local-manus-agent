@@ -45,5 +45,8 @@
     "force_safe_mode": true,
     "browser_mode": "disabled",
     "host": "127.0.0.1"
+  },
+  "model_paths": {
+    "gemma-e2b-litert": "D:\\local-manus-agent\\local-manus-agent\\models\\gemma-e2b\\gemma-3n-E2B-it-int4.litertlm"
   }
 }

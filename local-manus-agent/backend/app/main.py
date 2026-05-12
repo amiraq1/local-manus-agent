@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from pydantic import BaseModel
 
 from app.agent.agent import Agent
@@ -415,14 +416,40 @@ async def api_select_preset(body: dict):
         return {"success": True, "preset": preset_id, "provider": "ollama"}
 
     elif preset_id == "gemma-e2b-litert":
-        model_path = config.GEMMA_E2B_LITERT_MODEL_PATH
+        # Resolve model path: user_config > config > registry recommended
+        from app.llm.model_registry import MODEL_REGISTRY, get_model_status
+        from app.user_config_manager import get_model_path as get_user_model_path
+
+        model_path = get_user_model_path("gemma-e2b-litert") or config.GEMMA_E2B_LITERT_MODEL_PATH
+        if not model_path:
+            model_path = MODEL_REGISTRY.get("gemma-e2b-litert", {}).get("recommended_path", "")
+
         if not model_path or not Path(model_path).exists():
             return {
                 "success": False,
                 "error": "Gemma E2B model not found",
-                "message": preset.get("download_instructions", ""),
-                "hint": "Set GEMMA_E2B_LITERT_MODEL_PATH in config.py to the downloaded .litertlm file",
+                "error_code": "model_not_found",
+                "message": "Download the model file and set its path.",
+                "hint": "Set GEMMA_E2B_LITERT_MODEL_PATH in config.py or use Model Manager to set the path.",
             }
+
+        # Model file exists - check SDK
+        try:
+            import litert_lm  # type: ignore
+            sdk_ok = True
+        except ImportError:
+            sdk_ok = False
+
+        if not sdk_ok:
+            return {
+                "success": False,
+                "error": "LiteRT-LM SDK missing",
+                "error_code": "sdk_missing",
+                "message": "Model file found, but LiteRT-LM SDK/runtime is not installed.",
+                "model_path": model_path,
+                "hint": "Install LiteRT-LM SDK: pip install litert-lm",
+            }
+
         config.LLM_PROVIDER = "litert"
         config.LITERT_CONFIG["model_path"] = model_path
         config.ACTIVE_LLM_PRESET = "gemma-e2b-litert"
@@ -435,8 +462,25 @@ async def api_select_preset(body: dict):
             return {
                 "success": False,
                 "error": "Custom LiteRT model not found",
+                "error_code": "model_not_found",
                 "hint": "Set LITERT_CONFIG['model_path'] in config.py",
             }
+
+        try:
+            import litert_lm  # type: ignore
+            sdk_ok = True
+        except ImportError:
+            sdk_ok = False
+
+        if not sdk_ok:
+            return {
+                "success": False,
+                "error": "LiteRT-LM SDK missing",
+                "error_code": "sdk_missing",
+                "message": "Model file found, but LiteRT-LM SDK/runtime is not installed.",
+                "model_path": model_path,
+            }
+
         config.LLM_PROVIDER = "litert"
         config.ACTIVE_LLM_PRESET = "litert-custom"
         reset_provider()

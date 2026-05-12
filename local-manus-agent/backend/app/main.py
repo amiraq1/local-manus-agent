@@ -360,6 +360,33 @@ async def api_llm_status():
     return get_provider_status()
 
 
+@app.get("/api/llm/litert/diagnostics")
+async def api_litert_diagnostics():
+    """Get comprehensive LiteRT-LM diagnostics."""
+    from app.llm.litert_diagnostics import get_full_diagnostics
+    from app.user_config_manager import load_user_config
+    import config
+
+    # Get best known model path
+    cfg = load_user_config()
+    model_path = (
+        cfg.get("model_paths", {}).get("gemma-e2b-litert", "")
+        or config.GEMMA_E2B_LITERT_MODEL_PATH
+        or config.LITERT_CONFIG.get("model_path", "")
+    )
+
+    # Fallback to recommended if still empty
+    if not model_path:
+        from app.llm.model_registry import MODEL_REGISTRY
+        rec = MODEL_REGISTRY.get("gemma-e2b-litert", {}).get("recommended_path", "")
+        from pathlib import Path as _P
+        if rec and _P(rec).exists():
+            model_path = rec
+
+    device = cfg.get("litert_device", "cpu")
+    return get_full_diagnostics(model_path, device)
+
+
 @app.post("/api/llm/test")
 async def api_llm_test():
     """Test the LLM provider with a simple prompt."""

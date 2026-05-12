@@ -142,6 +142,27 @@ export default function LLMStatusPanel() {
             {testResult}
           </p>
         )}
+
+        {/* Diagnose LiteRT */}
+        <button
+          onClick={async () => {
+            try {
+              const r = await fetch(`${API}/llm/litert/diagnostics`);
+              const d = await r.json();
+              const lines = [
+                `SDK: ${d.sdk_installed ? "✓ " + d.sdk_module : "✗ not installed"}`,
+                `Model: ${d.model_path_exists ? "✓ " + d.model_path : "✗ not found"}`,
+                `Runtime: ${d.runtime_available ? "✓ ready" : "✗ " + d.status}`,
+                d.message,
+                ...(d.suggestions || []).map((s: string) => "• " + s),
+              ];
+              alert(lines.join("\n"));
+            } catch { alert("Diagnostics failed"); }
+          }}
+          className="w-full px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px]"
+        >
+          Diagnose LiteRT
+        </button>
       </div>
     </div>
   );

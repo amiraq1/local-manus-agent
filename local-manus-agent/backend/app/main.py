@@ -293,6 +293,29 @@ async def api_autofix(task_id: str, body: dict = {}):
     return do_fix(task_id, path)
 
 
+# --- LLM Provider ---
+
+@app.get("/api/llm/status")
+async def api_llm_status():
+    """Get LLM provider status."""
+    from app.llm.factory import get_provider_status
+    return get_provider_status()
+
+
+@app.post("/api/llm/test")
+async def api_llm_test():
+    """Test the LLM provider with a simple prompt."""
+    try:
+        from app.llm.factory import get_llm_provider
+        provider = get_llm_provider()
+        if not provider.is_available():
+            return {"success": False, "error": "Provider not available", "info": provider.model_info()}
+        result = await provider.generate("Say hello in one word.")
+        return {"success": True, "response": result[:200], "info": provider.model_info()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # --- Memory & RAG ---
 
 @app.post("/api/tasks/{task_id}/memory")

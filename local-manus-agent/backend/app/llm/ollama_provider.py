@@ -17,15 +17,26 @@ class OllamaProvider(LocalLLMProvider):
         self.temperature = OLLAMA_CONFIG["temperature"]
         self.max_tokens = OLLAMA_CONFIG["max_tokens"]
 
-    async def generate(self, prompt: str) -> str:
-        """Generate a complete response from Ollama.
+    def is_available(self) -> bool:
+        """Check if Ollama is reachable."""
+        try:
+            import httpx as _httpx
+            r = _httpx.get(f"{self.base_url}/api/tags", timeout=5)
+            return r.status_code == 200
+        except Exception:
+            return False
 
-        Args:
-            prompt: The input prompt.
+    def model_info(self) -> dict:
+        return {
+            "provider": "ollama",
+            "model": self.model,
+            "base_url": self.base_url,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
 
-        Returns:
-            Complete generated text.
-        """
+    async def generate(self, prompt: str, **kwargs) -> str:
+        """Generate a complete response from Ollama."""
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
                 f"{self.base_url}/api/generate",
@@ -34,8 +45,8 @@ class OllamaProvider(LocalLLMProvider):
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "temperature": self.temperature,
-                        "num_predict": self.max_tokens,
+                        "temperature": kwargs.get("temperature", self.temperature),
+                        "num_predict": kwargs.get("max_tokens", self.max_tokens),
                     },
                 },
             )
@@ -43,15 +54,8 @@ class OllamaProvider(LocalLLMProvider):
             data = response.json()
             return data.get("response", "")
 
-    async def stream(self, prompt: str) -> AsyncGenerator[str, None]:
-        """Stream response tokens from Ollama.
-
-        Args:
-            prompt: The input prompt.
-
-        Yields:
-            Individual tokens/chunks.
-        """
+    async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
+        """Stream response tokens from Ollama."""
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
                 "POST",
@@ -61,8 +65,8 @@ class OllamaProvider(LocalLLMProvider):
                     "prompt": prompt,
                     "stream": True,
                     "options": {
-                        "temperature": self.temperature,
-                        "num_predict": self.max_tokens,
+                        "temperature": kwargs.get("temperature", self.temperature),
+                        "num_predict": kwargs.get("max_tokens", self.max_tokens),
                     },
                 },
             ) as response:
@@ -76,18 +80,8 @@ class OllamaProvider(LocalLLMProvider):
                             break
 
     def tool_call_parse(self, response: str) -> dict | None:
-        """Parse a tool call from the LLM response.
-
-        Looks for JSON tool call patterns in the response.
-
-        Args:
-            response: Raw LLM response text.
-
-        Returns:
-            Parsed tool call dict or None.
-        """
+        """Parse a tool call from the LLM response."""
         try:
-            # Look for JSON object with tool and params
             text = response.strip()
             start = text.find("{")
             end = text.rfind("}") + 1

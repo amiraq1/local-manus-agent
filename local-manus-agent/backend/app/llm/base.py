@@ -1,4 +1,4 @@
-"""Base LLM Provider interface and factory."""
+"""Base LLM Provider interface and factory accessor."""
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator
 
@@ -7,60 +7,35 @@ class LocalLLMProvider(ABC):
     """Abstract base class for local LLM providers."""
 
     @abstractmethod
-    async def generate(self, prompt: str) -> str:
-        """Generate a complete response for the given prompt.
-
-        Args:
-            prompt: The input prompt.
-
-        Returns:
-            Complete generated text.
-        """
+    async def generate(self, prompt: str, **kwargs) -> str:
+        """Generate a complete response."""
         ...
 
     @abstractmethod
-    async def stream(self, prompt: str) -> AsyncGenerator[str, None]:
-        """Stream response tokens for the given prompt.
-
-        Args:
-            prompt: The input prompt.
-
-        Yields:
-            Individual tokens/chunks of the response.
-        """
+    async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
+        """Stream response tokens."""
         ...
 
     @abstractmethod
     def tool_call_parse(self, response: str) -> dict | None:
-        """Parse a tool call from the LLM response.
+        """Parse a tool call from the LLM response."""
+        ...
 
-        Args:
-            response: Raw LLM response text.
+    @abstractmethod
+    def is_available(self) -> bool:
+        """Check if this provider is ready to use."""
+        ...
 
-        Returns:
-            Parsed tool call dict or None if no tool call found.
-        """
+    @abstractmethod
+    def model_info(self) -> dict:
+        """Return info about the current model/provider."""
         ...
 
 
-_provider_instance: LocalLLMProvider | None = None
-
-
 def get_llm_provider() -> LocalLLMProvider:
-    """Get the configured LLM provider instance (singleton).
+    """Get the configured LLM provider (delegates to factory).
 
-    Returns:
-        The active LocalLLMProvider instance.
+    This function exists for backward compatibility.
     """
-    global _provider_instance
-    if _provider_instance is None:
-        from config import LLM_PROVIDER
-        if LLM_PROVIDER == "ollama":
-            from app.llm.ollama_provider import OllamaProvider
-            _provider_instance = OllamaProvider()
-        elif LLM_PROVIDER == "litert":
-            from app.llm.litert_provider import LiteRTProvider
-            _provider_instance = LiteRTProvider()
-        else:
-            raise ValueError(f"Unknown LLM provider: {LLM_PROVIDER}")
-    return _provider_instance
+    from app.llm.factory import get_llm_provider as _get
+    return _get()

@@ -22,6 +22,10 @@ LITERT_CONFIG = {
     "model_path": "",
     "temperature": 0.7,
     "max_tokens": 4096,
+    "device": "cpu",
+    "enable_streaming": True,
+    "fallback_provider": "ollama",
+    "allow_fallback": True,
 }
 
 # Preview server
@@ -78,12 +82,3 @@ SANDBOX_MEMORY_LIMIT = "512m"
 SANDBOX_CPU_LIMIT = 1
 SANDBOX_COMMAND_TIMEOUT = 30
 SANDBOX_NETWORK_ENABLED = False
-
-# Docker Sandbox settings
-SANDBOX_ENABLED = True
-SANDBOX_BACKEND = "docker"  # Only "docker" supported currently
-SANDBOX_IMAGE = "local-manus-sandbox:latest"
-SANDBOX_MEMORY_LIMIT = "512m"
-SANDBOX_CPU_LIMIT = 1
-SANDBOX_COMMAND_TIMEOUT = 30  # seconds
-SANDBOX_NETWORK_ENABLED = False  # No network by default

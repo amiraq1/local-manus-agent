@@ -11,6 +11,7 @@ import ModeSwitch from "@/components/ModeSwitch";
 import BrowserPanel from "@/components/BrowserPanel";
 import FileDiffPanel from "@/components/FileDiffPanel";
 import SandboxStatus from "@/components/SandboxStatus";
+import LLMStatusPanel from "@/components/LLMStatusPanel";
 import ArtifactsPanel from "@/components/ArtifactsPanel";
 import MemoryPanel from "@/components/MemoryPanel";
 import AgentsPanel from "@/components/AgentsPanel";
@@ -94,6 +95,7 @@ export default function Home() {
           <ArtifactsPanel taskId={currentTaskId} />
           <MemoryPanel taskId={currentTaskId} />
           <SandboxStatus />
+          <LLMStatusPanel />
           <ToolLog logs={toolLogs} />
         </div>
       </div>

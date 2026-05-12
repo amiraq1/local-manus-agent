@@ -34,6 +34,11 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Models (large binary files)
+models/imported/
+models/.uploads/
+*.litertlm
+
 # Workspace output (user-generated)
 backend/workspace/tasks/
 backend/workspace/*

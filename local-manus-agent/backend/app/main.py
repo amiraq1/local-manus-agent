@@ -4,7 +4,7 @@ import json
 import uuid
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -443,6 +443,56 @@ async def api_select_preset(body: dict):
         return {"success": True, "preset": preset_id, "provider": "litert", "model_path": model_path}
 
     return {"error": "Unhandled preset"}
+
+
+# --- Model Import ---
+
+@app.post("/api/models/import/start")
+async def api_import_start(body: dict):
+    """Start a model import session."""
+    from app.llm.model_import import start_import
+    filename = body.get("filename", "")
+    size = body.get("size", 0)
+    model_name = body.get("model_name", "")
+    return start_import(filename, size, model_name)
+
+
+@app.post("/api/models/import/chunk")
+async def api_import_chunk(request: Request):
+    """Receive a chunk of model data."""
+    from app.llm.model_import import receive_chunk
+    form = await request.form()
+    import_id = form.get("import_id", "")
+    chunk_index = int(form.get("chunk_index", "0"))
+    file = form.get("chunk")
+    if not file or not import_id:
+        return {"success": False, "error": "import_id and chunk are required"}
+    data = await file.read()
+    return receive_chunk(import_id, chunk_index, data)
+
+
+@app.post("/api/models/import/finish")
+async def api_import_finish(body: dict):
+    """Finish import and combine chunks."""
+    from app.llm.model_import import finish_import
+    import_id = body.get("import_id", "")
+    if not import_id:
+        return {"error": "import_id is required"}
+    return finish_import(import_id)
+
+
+@app.get("/api/models/import/status/{import_id}")
+async def api_import_status(import_id: str):
+    """Get import progress."""
+    from app.llm.model_import import get_import_status
+    return get_import_status(import_id)
+
+
+@app.delete("/api/models/import/{import_id}")
+async def api_import_cancel(import_id: str):
+    """Cancel an import."""
+    from app.llm.model_import import cancel_import
+    return cancel_import(import_id)
 
 
 # --- Goals ---

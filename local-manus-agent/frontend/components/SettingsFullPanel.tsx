@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Save, RotateCcw, AlertTriangle } from "lucide-react";
 import ModelManagerPanel from "./ModelManagerPanel";
+import ModelImportPanel from "./ModelImportPanel";
 
 type Tab = "general" | "models" | "security" | "sandbox" | "browser" | "memory" | "termux" | "about";
 
@@ -127,7 +128,12 @@ export default function SettingsFullPanel() {
           </>
         )}
 
-        {tab === "models" && <ModelManagerPanel />}
+        {tab === "models" && (
+          <>
+            <ModelManagerPanel />
+            <ModelImportPanel />
+          </>
+        )}
 
         {tab === "security" && (
           <>

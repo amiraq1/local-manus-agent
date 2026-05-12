@@ -217,48 +217,80 @@ async def get_task_changes(task_id: str):
     return {"changes": changes}
 
 
-@app.post("/api/changes/{change_id}/accept")
-async def api_accept_change(change_id: str):
-    """Accept a pending file change."""
+@app.get("/api/tasks/{task_id}/changes/{change_id}")
+async def get_single_change(task_id: str, change_id: str):
+    """Get a single file change with isolation check."""
+    change = db.get_file_change(change_id)
+    if not change:
+        return {"error": "Change not found"}
+    if change["task_id"] != task_id:
+        return {"error": "Change does not belong to this task"}
+    return change
+
+
+@app.post("/api/tasks/{task_id}/changes/{change_id}/accept")
+async def api_accept_change(task_id: str, change_id: str):
+    """Accept a pending file change with task isolation."""
+    change = db.get_file_change(change_id)
+    if not change:
+        return {"error": "Change not found"}
+    if change["task_id"] != task_id:
+        return {"error": "Change does not belong to this task"}
     from app.tools.diff_tools import accept_file_change as do_accept
     return do_accept(change_id)
 
 
-@app.post("/api/changes/{change_id}/reject")
-async def api_reject_change(change_id: str):
-    """Reject a pending file change."""
+@app.post("/api/tasks/{task_id}/changes/{change_id}/reject")
+async def api_reject_change(task_id: str, change_id: str):
+    """Reject a pending file change with task isolation."""
+    change = db.get_file_change(change_id)
+    if not change:
+        return {"error": "Change not found"}
+    if change["task_id"] != task_id:
+        return {"error": "Change does not belong to this task"}
     from app.tools.diff_tools import reject_file_change as do_reject
     return do_reject(change_id)
 
 
-@app.post("/api/changes/{change_id}/apply")
-async def api_apply_change(change_id: str):
-    """Apply a file change (accept + write to disk)."""
+@app.post("/api/tasks/{task_id}/changes/{change_id}/apply")
+async def api_apply_change(task_id: str, change_id: str):
+    """Apply a file change with task isolation."""
+    change = db.get_file_change(change_id)
+    if not change:
+        return {"error": "Change not found"}
+    if change["task_id"] != task_id:
+        return {"error": "Change does not belong to this task"}
     from app.tools.diff_tools import accept_file_change as do_accept
     return do_accept(change_id)
 
 
 # --- Code Review ---
 
-@app.post("/api/review")
-async def api_review_code(body: dict):
+@app.post("/api/tasks/{task_id}/review")
+async def api_review_code(task_id: str, body: dict = {}):
     """Review a file for code quality issues."""
     from app.tools.code_review_tools import review_code as do_review
-    return do_review(body.get("path", ""))
+    path = body.get("path", "")
+    if not path:
+        return {"error": "path is required"}
+    return do_review(task_id, path)
 
 
-@app.post("/api/lint")
-async def api_lint(body: dict):
-    """Run lint on a file."""
-    from app.tools.code_review_tools import run_lint as do_lint
-    return do_lint(body.get("path", ""))
+@app.post("/api/tasks/{task_id}/checks")
+async def api_project_checks(task_id: str):
+    """Run project-level checks."""
+    from app.tools.code_review_tools import run_project_checks
+    return run_project_checks(task_id)
 
 
-@app.post("/api/autofix")
-async def api_autofix(body: dict):
+@app.post("/api/tasks/{task_id}/auto-fix")
+async def api_autofix(task_id: str, body: dict = {}):
     """Auto-fix simple issues in a file."""
     from app.tools.code_review_tools import auto_fix as do_fix
-    return do_fix(body.get("path", ""))
+    path = body.get("path", "")
+    if not path:
+        return {"error": "path is required"}
+    return do_fix(task_id, path)
 
 
 # --- Sandbox ---

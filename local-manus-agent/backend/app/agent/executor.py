@@ -7,7 +7,7 @@ from app.tools.file_tools import read_file, write_file, edit_file, list_files, c
 from app.tools.shell_tools import run_command
 from app.tools.preview_tools import start_preview, stop_preview, get_preview_url
 from app.tools.diff_tools import get_file_diff, list_pending_changes, accept_file_change, reject_file_change
-from app.tools.code_review_tools import review_code, run_lint, detect_runtime_errors, suggest_fixes, auto_fix
+from app.tools.code_review_tools import review_code, run_project_checks, detect_runtime_errors, suggest_fixes, auto_fix
 from app.tools.browser_tools import (
     browser_open_url,
     browser_get_text,
@@ -39,9 +39,9 @@ TOOLS = {
     "list_pending_changes": list_pending_changes,
     "accept_file_change": accept_file_change,
     "reject_file_change": reject_file_change,
-    # Code review tools (sync)
+    # Code review tools (sync - take task_id as first arg from workspace manager)
     "review_code": review_code,
-    "run_lint": run_lint,
+    "run_project_checks": run_project_checks,
     "detect_runtime_errors": detect_runtime_errors,
     "suggest_fixes": suggest_fixes,
     "auto_fix": auto_fix,

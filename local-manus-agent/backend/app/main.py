@@ -445,6 +445,58 @@ async def api_select_preset(body: dict):
     return {"error": "Unhandled preset"}
 
 
+# --- Export ---
+
+@app.post("/api/tasks/{task_id}/export")
+async def api_export_task(task_id: str):
+    """Create a ZIP export of a task."""
+    from app.artifacts.exporter import create_task_export
+    return create_task_export(task_id)
+
+
+@app.get("/api/tasks/{task_id}/export/download")
+async def api_download_export(task_id: str):
+    """Download the task ZIP export."""
+    from fastapi.responses import FileResponse
+    from app.workspace.manager import get_task_workspace
+
+    task_ws = get_task_workspace(task_id)
+    # Find the zip file
+    artifacts_dir = task_ws / "artifacts"
+    if not artifacts_dir.exists():
+        return {"error": "No export found. Run POST /api/tasks/{task_id}/export first."}
+
+    zips = list(artifacts_dir.glob("task-*.zip"))
+    if not zips:
+        return {"error": "No export ZIP found."}
+
+    zip_file = sorted(zips, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+    return FileResponse(path=str(zip_file), filename=zip_file.name, media_type="application/zip")
+
+
+@app.get("/api/tasks/{task_id}/export/status")
+async def api_export_status(task_id: str):
+    """Check if an export exists for a task."""
+    from app.workspace.manager import get_task_workspace
+
+    task_ws = get_task_workspace(task_id)
+    artifacts_dir = task_ws / "artifacts"
+    if not artifacts_dir.exists():
+        return {"exists": False}
+
+    zips = list(artifacts_dir.glob("task-*.zip"))
+    if not zips:
+        return {"exists": False}
+
+    latest = sorted(zips, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+    return {
+        "exists": True,
+        "filename": latest.name,
+        "size": latest.stat().st_size,
+        "path": str(latest.relative_to(task_ws)),
+    }
+
+
 # --- Models ---
 
 @app.get("/api/models")

@@ -16,6 +16,7 @@ import LLMStatusPanel from "@/components/LLMStatusPanel";
 import ArtifactsPanel from "@/components/ArtifactsPanel";
 import MemoryPanel from "@/components/MemoryPanel";
 import AgentsPanel from "@/components/AgentsPanel";
+import ExportPanel from "@/components/ExportPanel";
 import MobileNav, { MobileTab } from "@/components/MobileNav";
 import SettingsPanel from "@/components/SettingsPanel";
 import SecurityPanel from "@/components/SecurityPanel";
@@ -124,6 +125,7 @@ export default function Home() {
         {mobileTab === "artifacts" && (
           <div className="flex-1 overflow-y-auto">
             <ArtifactsPanel taskId={currentTaskId} />
+            <ExportPanel taskId={currentTaskId} />
             <TaskHistory tasks={taskHistory} currentTaskId={currentTaskId} onSelect={loadTask} />
           </div>
         )}

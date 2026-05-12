@@ -1,4 +1,6 @@
-# Local Manus Agent v1.1.0
+# Local Manus Agent v1.2.0
+
+Current version: `v1.2.0`
 
 [![CI](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/amiraq1/local-manus-agent)](https://github.com/amiraq1/local-manus-agent/releases)
@@ -40,6 +42,42 @@ docker build -f backend/sandbox.Dockerfile -t local-manus-sandbox:latest backend
 # افتح: http://localhost:3000
 ```
 
+## Running Gemma E2B with LiteRT-LM CLI
+
+1. Download the Gemma E2B `.litertlm` model:
+
+```bash
+pip install -U huggingface_hub
+huggingface-cli login
+huggingface-cli download google/gemma-3n-E2B-it-litert-lm gemma-3n-E2B-it-int4.litertlm --local-dir models/gemma-e2b
+```
+
+2. Install `uv`.
+
+3. Install LiteRT-LM CLI:
+
+```bash
+uv tool install litert-lm
+```
+
+4. Test the CLI directly:
+
+```powershell
+C:\Users\Aledari\.local\bin\litert-lm.exe run <model> --backend=cpu --prompt "Say hello"
+```
+
+5. Open Model Manager and choose `Gemma E2B LiteRT-LM`.
+
+6. Run `Diagnose LiteRT` from the UI to confirm runtime and model detection.
+
+7. Run `Test LiteRT CLI` from the UI to verify prompt execution.
+
+LiteRT notes:
+
+- The CLI runtime is the preferred path for `.litertlm` on Windows.
+- Arabic prompts are handled more safely through `temp_file` and `stdin` prompt modes.
+- Available prompt modes are `temp_file`, `stdin`, and `arg`.
+
 ## Quick Start for Termux (Android)
 
 ```bash
@@ -58,6 +96,8 @@ export OLLAMA_BASE_URL=http://<pc-ip>:11434
 
 ملاحظات مهمة حول دعم Termux:
 
+- شغّل الإعداد عبر `./setup-termux.sh`.
+- شغّل الخدمات عبر `./start-termux.sh`.
 - `setup-termux.sh` أصبح سكربت `sh` مباشرًا، وليس مجرد wrapper يستدعي منسّق Python لكل الخطوات.
 - تثبيت بايثون في Termux يستخدم `backend/requirements-termux.txt` بدل `backend/requirements.txt` لأن `Playwright` غير مدعوم هناك.
 - السكربت يطبّق رقعة Next.js / SWC تلقائيًا عبر `scripts/patch_next_termux.py` بعد `npm install` حتى يعمل `next dev` على Android/Termux.

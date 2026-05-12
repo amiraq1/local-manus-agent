@@ -1,14 +1,25 @@
 # Changelog
 
-## Unreleased
+## v1.2.0 (2026-05-13)
+
+### Added
+- Added LiteRT-LM CLI Provider
+- Gemma E2B `.litertlm` now runs locally via `litert-lm` CLI
+- Added LiteRT diagnostics with CLI detection
+- Added Test LiteRT CLI endpoint/UI
+- Added prompt modes: `temp_file`, `stdin`, `arg`
+- Added Termux-specific requirements
+- Added Next.js Android SWC patch for Termux
+- Added CORS support for `127.0.0.1:3000`
 
 ### Fixed
-- Fixed Termux setup flow
-- Added Termux-specific backend requirements
-- Added Next.js Android SWC patch
-- Improved `start_termux.py` lifecycle and cleanup behavior
-- Added CORS allowance for `127.0.0.1:3000`
-- Verified Termux backend health and frontend `200` responses
+- Fixed Arabic prompt encoding for LiteRT CLI
+- Improved LiteRT preset selection errors
+- Fixed Termux setup and startup flow
+- Improved Termux startup cleanup and health checks
+
+### Verified
+- Verified Termux health/frontend `200` responses
 
 ## v1.1.0 (2026-05-12) — Usability & Productivity
 

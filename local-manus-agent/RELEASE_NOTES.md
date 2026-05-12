@@ -1,87 +1,70 @@
-# Local Manus Agent v0.9.0
+# Local Manus Agent v0.10.0
 
 ## Overview
 
-First functional release of Local Manus Agent — an AI-powered local development agent that analyzes tasks, creates execution plans, writes code, reviews quality, and verifies results visually, all running locally without external API dependencies.
+This release adds full Termux (Android) support, allowing Local Manus Agent to run on mobile devices with appropriate security adaptations.
 
-## Features
+## New: Termux Support
 
-| Feature | Description |
-|---------|-------------|
-| Multi-Agent Architecture | Orchestrator + 6 specialized agents |
-| Ollama LLM | Local inference via qwen2.5-coder:7b |
-| LiteRT-LM Support | Pluggable provider with fallback |
-| Docker Sandbox | Isolated command execution |
-| Browser Automation | Playwright-based visual testing |
-| File Diff | Unified diffs with approval flow |
-| Code Review | Pattern detection + auto-fix |
-| Memory/RAG | File indexing + context retrieval |
-| Task Workspaces | Per-task isolated directories |
-| Artifacts | Tracks files, screenshots, reports |
-| Real-time UI | WebSocket streaming + modern React UI |
+Local Manus Agent now detects when running inside Termux and automatically adapts:
 
-## Installation
+- **Docker Sandbox**: Disabled (not available on Android)
+- **Browser Automation**: Disabled by default
+- **Safe Mode**: Always enforced (all commands need approval)
+- **Extra Security**: Package install commands require explicit approval
+
+### Installation on Android
 
 ```bash
-# Clone
-git clone https://github.com/amiraq1/local-manus-agent.git
+# Install Termux from F-Droid (recommended)
+pkg update && pkg install python nodejs git
+
+git clone https://github.com/amiraq1/local-manus-agent
 cd local-manus-agent
+chmod +x setup-termux.sh start-termux.sh
 
-# Setup (installs all dependencies)
-python scripts/setup.py
-
-# Or manually:
-cd backend && pip install -r requirements.txt && playwright install chromium
-cd frontend && npm install
+./setup-termux.sh
+./start-termux.sh
 ```
 
-## Quick Start
+### Using Remote Ollama
+
+Since running large LLMs on a phone is impractical, connect to Ollama on your PC:
 
 ```bash
-# Start Ollama
-ollama pull qwen2.5-coder:7b
-ollama serve
-
-# Start the agent
-python scripts/start.py
-
-# Open http://localhost:3000
+# On your PC: ollama serve (ensure it listens on 0.0.0.0)
+# On Termux:
+export OLLAMA_BASE_URL=http://<your-pc-ip>:11434
+./start-termux.sh
 ```
 
-Or on Windows: `setup.bat` then `start.bat`
+## Other Changes
 
-## Requirements
+- Added `GET /api/platform/status` endpoint
+- Platform detection module for auto-configuration
+- Config: `PLATFORM_MODE`, `TERMUX_*` settings
 
-- Python >= 3.11
-- Node.js >= 20
-- Ollama (for LLM inference)
-- Docker (optional, for sandbox)
+## Limitations on Termux
 
-## Known Limitations
-
-- LiteRT-LM SDK is not yet publicly available; the provider is ready but uses Ollama as fallback
-- Docker Sandbox requires Docker to be installed; without it, commands run locally with safety checks
-- Preview server timing: browser verification may need a brief delay after preview starts
-- Auto-fix is limited to simple patterns (var→let, ==→===, missing alt attributes)
-- No Git integration yet (planned for v1.0)
-- No project export/ZIP (planned)
+- Docker Sandbox unavailable
+- Browser Automation unavailable by default
+- Large models may not fit in device memory
+- Performance depends on device hardware
+- Recommended: use remote Ollama
 
 ## Security Notes
 
-- All file operations are confined to task workspaces
-- Path traversal (`..`) and absolute paths are blocked
-- Dangerous shell commands are blocked by default
-- Docker sandbox runs as non-root with all capabilities dropped
-- Docker socket mount is strictly forbidden
-- .env files and secrets are excluded from indexing and display
-- Safe Mode requires user approval for shell commands and file changes
+- Safe Mode is always active on Termux
+- Commands like `pkg install`, `pip install`, `npm install -g` need approval
+- All standard safety checks still apply
+- Task workspace isolation is maintained
 
-## Roadmap to v1.0
+## Upgrade from v0.9.0
 
-- [ ] Full LiteRT-LM integration when SDK is available
-- [ ] Git operations (commit, push, branch)
-- [ ] Project export as ZIP
-- [ ] Built-in code editor in UI
-- [ ] Plugin system
-- [ ] Multi-model support (run different models per agent)
-- [ ] Conversation persistence across sessions
+No breaking changes. Simply `git pull` and restart:
+
+```bash
+git pull
+python scripts/setup.py  # or ./setup-termux.sh on Android
+python scripts/start.py  # or ./start-termux.sh on Android
+```

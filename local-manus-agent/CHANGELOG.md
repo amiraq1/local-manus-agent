@@ -1,38 +1,51 @@
 # Changelog
 
-## v0.9.0 (2026-05-12) — First Functional Release
+## v0.10.0 (2026-05-12) — Termux Support
 
-The first complete, runnable release of Local Manus Agent.
+### Added
+- **Termux Mode**: Full support for running on Android via Termux
+- Platform detection module (`backend/app/platform/`)
+- `GET /api/platform/status` endpoint
+- `scripts/setup_termux.py` and `scripts/start_termux.py`
+- `setup-termux.sh` and `start-termux.sh` shell scripts
+- Safe Mode enforced automatically on Termux
+- Docker Sandbox disabled automatically on Termux
+- Browser Automation disabled by default on Termux
+- Extra command restrictions for Termux security
+- Remote Ollama support via `OLLAMA_BASE_URL` environment variable
+- `PLATFORM_MODE` config option (auto/desktop/termux)
 
-### Features
-
-- **Multi-Agent Architecture**: Orchestrator coordinates specialized agents (Planner, Coder, Reviewer, Security, Browser, Memory)
-- **LLM Providers**: Ollama (primary) + LiteRT-LM (with fallback support)
-- **Docker Sandbox**: Isolated command execution with memory/CPU/network limits
-- **Browser Automation**: Headless Chromium via Playwright for visual verification and screenshots
-- **Task Workspaces**: Per-task isolated file system with artifacts tracking
-- **File Diff System**: Unified diffs with pending/accept/reject flow in Safe Mode
-- **Code Review + Auto Fix**: Pattern-based review, lint, and automatic fixes for common issues
-- **Agent Memory + Project RAG**: File indexing, keyword search, context retrieval, and persistent memories
-- **Artifacts System**: Tracks all generated files, screenshots, and reports per task
-- **Safe/Autonomous Modes**: Command approval flow in Safe Mode, auto-execution in Autonomous Mode
-- **SQLite Persistence**: Tasks, messages, plan steps, tool logs, file changes, artifacts, browser logs, agent steps, memories, file index
-- **Real-time WebSocket**: Live streaming of agent phases, tool calls, and multi-agent steps
-- **GitHub Actions CI**: Backend compile check, frontend build, Docker image build, security scan
-- **One-command Setup**: `python scripts/setup.py` installs everything, `python scripts/start.py` runs all services
-
-### Infrastructure
-
-- FastAPI backend (Python 3.11+)
-- Next.js 14 + React + TypeScript + Tailwind CSS frontend
-- Docker Compose support
-- Cross-platform scripts (Windows .bat, Linux/macOS .sh, Python scripts)
+### Changed
+- Backend version updated to 0.9.0 → 0.10.0
+- Config now includes platform-specific settings
 
 ### Security
+- Termux always runs in Safe Mode (commands need approval)
+- Package install commands (`pkg install`, `pip install`, `npm install -g`) require approval
+- Dangerous path operations blocked on Termux
 
-- Path traversal prevention
-- Dangerous command blocking
-- Docker socket mount forbidden
-- Non-root sandbox containers
-- Task workspace isolation
-- .env/secrets excluded from indexing
+---
+
+## v0.9.0 (2026-05-12) — First Functional Release
+
+### Features
+- Multi-Agent Architecture (Orchestrator + 6 specialized agents)
+- Ollama + LiteRT-LM provider support with fallback
+- Docker Sandbox for isolated command execution
+- Browser Automation via Playwright
+- Task Workspaces with per-task isolation
+- Artifacts system (files, screenshots, reports)
+- File Diff with pending/accept/reject flow
+- Code Review + Auto Fix
+- Agent Memory + Project RAG
+- SQLite persistence for all data
+- Real-time WebSocket streaming
+- GitHub Actions CI
+- One-command setup/start scripts
+- Tauri Desktop App support
+
+### Infrastructure
+- FastAPI backend (Python 3.11+)
+- Next.js 14 + React + TypeScript + Tailwind CSS
+- Docker Compose support
+- Cross-platform scripts (Windows/Linux/macOS)

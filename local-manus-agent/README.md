@@ -1,4 +1,4 @@
-# Local Manus Agent v0.9.0
+# Local Manus Agent v0.10.0
 
 [![CI](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/amiraq1/local-manus-agent)](https://github.com/amiraq1/local-manus-agent/releases)
@@ -38,6 +38,24 @@ npm run dev
 docker build -f backend/sandbox.Dockerfile -t local-manus-sandbox:latest backend
 
 # افتح: http://localhost:3000
+```
+
+## Quick Start for Termux (Android)
+
+```bash
+pkg update && pkg install python nodejs git
+git clone https://github.com/amiraq1/local-manus-agent
+cd local-manus-agent
+chmod +x setup-termux.sh start-termux.sh
+./setup-termux.sh
+./start-termux.sh
+# افتح: http://127.0.0.1:3000
+```
+
+للـ LLM، استخدم Ollama على كمبيوتر:
+```bash
+export OLLAMA_BASE_URL=http://<pc-ip>:11434
+```
 ```
 
 ## Docker Sandbox

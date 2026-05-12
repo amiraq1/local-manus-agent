@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Syntax check (compileall)
+        run: python -m compileall app config.py
+
+      - name: Run tests (if any)
+        run: |
+          if find . -name "test_*.py" -o -name "*_test.py" 2>/dev/null | grep -q .; then
+            pytest -v
+          else
+            echo "No tests found, skipping pytest"
+          fi
+
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint (if configured)
+        run: |
+          if node -e "const p=require('./package.json');process.exit(p.scripts&&p.scripts.lint?0:1)"; then
+            npm run lint
+          else
+            echo "No lint script configured, skipping"
+          fi
+
+      - name: Build
+        run: npm run build
+
+  sandbox-image:
+    name: Docker Sandbox Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build sandbox image
+        run: docker build -f backend/sandbox.Dockerfile -t local-manus-sandbox:ci backend
+
+      - name: Verify image
+        run: |
+          docker image inspect local-manus-sandbox:ci
+          docker run --rm local-manus-sandbox:ci python3 --version
+          docker run --rm local-manus-sandbox:ci node --version
+
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for forbidden files
+        run: |
+          FAIL=0
+          echo "Checking for sensitive/generated files that should not be in repo..."
+
+          check() {
+            local pattern="$1"
+            local found
+            found=$(find . -type f -name "$pattern" -not -path "./.git/*" 2>/dev/null | head -5)
+            if [ -n "$found" ]; then
+              echo "❌ Forbidden files matching '$pattern':"
+              echo "$found"
+              FAIL=1
+            else
+              echo "✓ No files matching '$pattern'"
+            fi
+          }
+
+          check_dir() {
+            local pattern="$1"
+            local found
+            found=$(find . -type d -name "$pattern" -not -path "./.git/*" 2>/dev/null | head -5)
+            if [ -n "$found" ]; then
+              echo "❌ Forbidden directories matching '$pattern':"
+              echo "$found"
+              FAIL=1
+            else
+              echo "✓ No directories matching '$pattern'"
+            fi
+          }
+
+          check ".env"
+          check "*.db"
+          check "*.sqlite"
+          check "*.sqlite3"
+          check_dir "node_modules"
+          check_dir ".next"
+
+          # Check workspace task dirs
+          if [ -d "backend/workspace/tasks" ] && [ "$(ls -A backend/workspace/tasks 2>/dev/null)" ]; then
+            echo "❌ backend/workspace/tasks is not empty (should be gitignored)"
+            ls -la backend/workspace/tasks
+            FAIL=1
+          else
+            echo "✓ backend/workspace/tasks is empty or absent"
+          fi
+
+          if [ $FAIL -eq 1 ]; then
+            echo ""
+            echo "::error::Security check failed. Add matching patterns to .gitignore."
+            exit 1
+          fi
+          echo ""
+          echo "All security checks passed ✓"

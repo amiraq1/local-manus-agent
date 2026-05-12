@@ -26,7 +26,13 @@ build/
 .DS_Store
 Thumbs.db
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
 # Workspace output (user-generated)
+backend/workspace/tasks/
 backend/workspace/*
 !backend/workspace/.gitkeep
 

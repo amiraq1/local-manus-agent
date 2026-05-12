@@ -1,5 +1,7 @@
 # Local Manus Agent v2.3
 
+[![CI](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/amiraq1/local-manus-agent/actions/workflows/ci.yml)
+
 وكيل ذكاء اصطناعي محلي يعمل بدون الاعتماد على API خارجي. يقوم بتحليل المهام، وضع خطط تنفيذ، إنشاء ملفات مع عرض diff، مراجعة الكود، إصلاح الأخطاء، تنفيذ الأوامر في Docker sandbox معزول، واختبار النتائج بمتصفح آلي.
 
 ## المميزات

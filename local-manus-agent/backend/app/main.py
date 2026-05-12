@@ -445,6 +445,79 @@ async def api_select_preset(body: dict):
     return {"error": "Unhandled preset"}
 
 
+# --- Models ---
+
+@app.get("/api/models/status")
+async def api_models_status():
+    """Get status of all registered models."""
+    from app.llm.model_registry import get_all_models_status
+    from app.user_config_manager import load_user_config
+    cfg = load_user_config()
+    return {"models": get_all_models_status(cfg.get("model_paths", {}))}
+
+
+@app.post("/api/models/check-path")
+async def api_models_check_path(body: dict):
+    """Check if a model file exists at a given path."""
+    path = body.get("path", "")
+    if not path:
+        return {"exists": False, "error": "path is required"}
+    from pathlib import Path as P
+    p = P(path)
+    exists = p.exists() and p.is_file()
+    size = p.stat().st_size if exists else 0
+    return {"path": path, "exists": exists, "size": size}
+
+
+@app.post("/api/models/set-path")
+async def api_models_set_path(body: dict):
+    """Set the path for a model and persist it."""
+    model_id = body.get("model_id", "")
+    path = body.get("path", "")
+    if not model_id or not path:
+        return {"error": "model_id and path are required"}
+    from app.user_config_manager import set_model_path
+    set_model_path(model_id, path)
+    return {"success": True, "model_id": model_id, "path": path}
+
+
+@app.get("/api/models/download-instructions")
+async def api_models_download_instructions(model_id: str = "gemma-e2b-litert"):
+    """Get download instructions for a model."""
+    from app.llm.model_registry import MODEL_REGISTRY
+    if model_id not in MODEL_REGISTRY:
+        return {"error": f"Unknown model: {model_id}"}
+    model = MODEL_REGISTRY[model_id]
+    return {
+        "model_id": model_id,
+        "name": model["name"],
+        "commands": model["install_commands"],
+        "license_note": model["license_note"],
+        "estimated_size": model["estimated_size"],
+        "recommended_path": model["recommended_path"],
+    }
+
+
+@app.get("/api/config")
+async def api_get_config():
+    """Get user config."""
+    from app.user_config_manager import load_user_config
+    return load_user_config()
+
+
+@app.post("/api/config")
+async def api_set_config(body: dict):
+    """Update user config."""
+    from app.user_config_manager import load_user_config, save_user_config
+    cfg = load_user_config()
+    # Only allow updating known keys
+    for key in ["active_preset", "model_paths", "ollama_base_url", "litert_settings"]:
+        if key in body:
+            cfg[key] = body[key]
+    save_user_config(cfg)
+    return {"success": True, "config": cfg}
+
+
 # --- Memory & RAG ---
 
 @app.post("/api/tasks/{task_id}/memory")

@@ -82,3 +82,11 @@ SANDBOX_MEMORY_LIMIT = "512m"
 SANDBOX_CPU_LIMIT = 1
 SANDBOX_COMMAND_TIMEOUT = 30
 SANDBOX_NETWORK_ENABLED = False
+
+# Platform settings
+PLATFORM_MODE = "auto"  # auto, desktop, termux
+TERMUX_MODE = False
+TERMUX_DISABLE_DOCKER = True
+TERMUX_BROWSER_MODE = "disabled"  # disabled, chromium
+TERMUX_CHROMIUM_PATH = ""
+TERMUX_HOST = "127.0.0.1"

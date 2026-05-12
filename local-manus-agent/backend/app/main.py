@@ -16,7 +16,13 @@ from app.browser.session import get_browser_manager
 from app import database as db
 from config import EXECUTION_MODE
 
-app = FastAPI(title="Local Manus Agent", version="2.0.0")
+app = FastAPI(title="Local Manus Agent", version="0.9.0")
+
+# Apply Termux adaptations if detected
+from app.platform.detector import is_termux
+if is_termux():
+    from app.platform.termux import apply_termux_config
+    apply_termux_config()
 
 app.add_middleware(
     CORSMiddleware,
@@ -294,6 +300,13 @@ async def api_autofix(task_id: str, body: dict = {}):
 
 
 # --- LLM Provider ---
+
+@app.get("/api/platform/status")
+async def api_platform_status():
+    """Get platform detection status."""
+    from app.platform.detector import get_platform_status
+    return get_platform_status()
+
 
 @app.get("/api/llm/status")
 async def api_llm_status():

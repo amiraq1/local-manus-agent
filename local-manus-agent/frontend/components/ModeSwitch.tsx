@@ -9,13 +9,15 @@ interface ModeSwitchProps {
 
 export default function ModeSwitch({ mode, onSwitch }: ModeSwitchProps) {
   return (
-    <div className="flex items-center gap-1 bg-dark-800 rounded-lg p-1">
+    <div className="flex items-center gap-0.5 bg-dark-800/60 rounded-lg p-0.5 border border-dark-700/40" role="radiogroup" aria-label="Execution mode">
       <button
+        role="radio"
+        aria-checked={mode === "safe"}
         onClick={() => onSwitch("safe")}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
           mode === "safe"
-            ? "bg-green-600/20 text-green-400 border border-green-600/30"
-            : "text-dark-400 hover:text-dark-200"
+            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 shadow-[0_0_8px_rgba(16,185,129,0.1)]"
+            : "text-dark-400 hover:text-dark-200 border border-transparent"
         }`}
         title="Safe Mode: Commands require approval"
       >
@@ -23,11 +25,13 @@ export default function ModeSwitch({ mode, onSwitch }: ModeSwitchProps) {
         Safe
       </button>
       <button
+        role="radio"
+        aria-checked={mode === "autonomous"}
         onClick={() => onSwitch("autonomous")}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
           mode === "autonomous"
-            ? "bg-orange-600/20 text-orange-400 border border-orange-600/30"
-            : "text-dark-400 hover:text-dark-200"
+            ? "bg-amber-500/15 text-amber-400 border border-amber-500/25 shadow-[0_0_8px_rgba(245,158,11,0.1)]"
+            : "text-dark-400 hover:text-dark-200 border border-transparent"
         }`}
         title="Autonomous Mode: Commands execute without approval"
       >

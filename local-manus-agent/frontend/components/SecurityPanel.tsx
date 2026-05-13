@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Shield, AlertTriangle } from "lucide-react";
+import { Shield } from "lucide-react";
+import { API } from "@/lib/config";
 
 interface SecurityEvent {
   id: string;
@@ -15,55 +16,60 @@ interface SecurityEvent {
   created_at: number;
 }
 
-const API = "http://localhost:8000/api";
-
 export default function SecurityPanel() {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [visible, setVisible] = useState(true);
 
   const load = useCallback(async () => {
     try {
       const r = await fetch(`${API}/security/events?limit=20`);
-      const data = await r.json();
-      setEvents(data.events || []);
-    } catch { /* ignore */ }
+      if (r.ok) { const data = await r.json(); setEvents(data.events || []); }
+    } catch { /* offline */ }
   }, []);
 
-  useEffect(() => { load(); const i = setInterval(load, 15000); return () => clearInterval(i); }, [load]);
+  useEffect(() => {
+    load();
+    let i: ReturnType<typeof setInterval>;
+    if (visible) i = setInterval(load, 15000);
+    return () => clearInterval(i);
+  }, [load, visible]);
+
+  useEffect(() => {
+    const h = () => setVisible(!document.hidden);
+    document.addEventListener("visibilitychange", h);
+    return () => document.removeEventListener("visibilitychange", h);
+  }, []);
 
   const severityColor = (s: string) => {
     switch (s) {
       case "critical": return "text-red-500";
       case "high": return "text-orange-400";
-      case "medium": return "text-yellow-400";
+      case "medium": return "text-amber-400";
       default: return "text-dark-400";
     }
   };
 
-  const decisionIcon = (d: string) => {
-    if (d === "deny") return "🚫";
-    if (d === "require_approval") return "⚠️";
-    return "✓";
-  };
+  const decisionIcon = (d: string) => d === "deny" ? "🚫" : d === "require_approval" ? "⚠️" : "✓";
 
   return (
     <div className="p-3 space-y-2">
       <div className="flex items-center gap-2 mb-2">
         <Shield size={14} className="text-red-400" />
-        <span className="text-sm font-medium text-dark-200">Security Events</span>
-        <span className="text-[10px] text-dark-500 ml-auto">{events.length}</span>
+        <span className="text-sm font-medium text-dark-200 font-display">Security Events</span>
+        <span className="badge-neutral ml-auto">{events.length}</span>
       </div>
 
       {events.length === 0 && (
         <p className="text-xs text-dark-500 text-center py-4">No security events recorded</p>
       )}
 
-      <div className="space-y-1 max-h-[300px] overflow-y-auto">
+      <div className="space-y-1 max-h-[300px] overflow-y-auto" role="log" aria-label="Security events">
         {events.map((e) => (
-          <div key={e.id} className="text-xs px-2 py-1.5 rounded bg-dark-800/50 space-y-0.5">
+          <div key={e.id} className="text-xs px-2.5 py-2 rounded-lg bg-dark-800/40 space-y-0.5 hover:bg-dark-800/60 transition-colors">
             <div className="flex items-center gap-1.5">
               <span>{decisionIcon(e.decision)}</span>
               <span className={`font-medium ${severityColor(e.severity)}`}>{e.severity}</span>
-              <span className="text-dark-400">·</span>
+              <span className="text-dark-600">·</span>
               <span className="text-dark-300">{e.event_type}</span>
               <span className="text-dark-500 ml-auto text-[9px]">{e.action}</span>
             </div>

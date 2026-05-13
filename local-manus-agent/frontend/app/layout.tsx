@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Local Manus Agent",
-  description: "AI-powered local development agent",
+  description: "AI-powered local development agent — plan, code, review, and verify on your machine",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -16,7 +16,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#6366f1",
+  themeColor: "#00E5A0",
 };
 
 export default function RootLayout({
@@ -27,6 +27,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>

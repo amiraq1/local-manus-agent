@@ -17,6 +17,29 @@ interface ChatPanelProps {
   onSend: (message: string) => void;
 }
 
+const PHASE_COLORS: Record<string, string> = {
+  thinking: "text-amber-400",
+  planning: "text-sky-400",
+  executing: "text-violet-400",
+  observation: "text-cyan-400",
+  reviewing: "text-orange-400",
+  fixing: "text-red-400",
+  completed: "text-emerald-400",
+  error: "text-red-500",
+};
+
+const PHASE_LABELS: Record<string, string> = {
+  thinking: "🧠 Thinking",
+  planning: "📋 Planning",
+  plan_ready: "✅ Plan Ready",
+  executing: "⚡ Executing",
+  observation: "👁 Observing",
+  reviewing: "🔍 Reviewing",
+  fixing: "🔧 Fixing",
+  completed: "✅ Done",
+  error: "❌ Error",
+};
+
 export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,85 +55,40 @@ export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProp
     setInput("");
   };
 
-  const getPhaseColor = (phase?: string) => {
-    switch (phase) {
-      case "thinking":
-        return "text-yellow-400";
-      case "planning":
-        return "text-blue-400";
-      case "executing":
-        return "text-purple-400";
-      case "observation":
-        return "text-cyan-400";
-      case "reviewing":
-        return "text-orange-400";
-      case "fixing":
-        return "text-red-400";
-      case "completed":
-        return "text-green-400";
-      case "error":
-        return "text-red-500";
-      default:
-        return "text-dark-300";
-    }
-  };
-
-  const getPhaseLabel = (phase?: string) => {
-    switch (phase) {
-      case "thinking":
-        return "🧠 Thinking";
-      case "planning":
-        return "📋 Planning";
-      case "plan_ready":
-        return "✅ Plan Ready";
-      case "executing":
-        return "⚡ Executing";
-      case "observation":
-        return "👁 Observing";
-      case "reviewing":
-        return "🔍 Reviewing";
-      case "fixing":
-        return "🔧 Fixing";
-      case "completed":
-        return "✅ Done";
-      case "error":
-        return "❌ Error";
-      default:
-        return "";
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="panel-header">Chat</div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3" role="log" aria-live="polite" aria-label="Chat messages">
         {messages.length === 0 && (
-          <div className="text-center text-dark-500 mt-8">
-            <p className="text-lg mb-2">👋 Welcome to Local Manus Agent</p>
-            <p className="text-sm">Describe a task and the agent will execute it locally.</p>
+          <div className="text-center mt-12 animate-fade-in">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-400/10 flex items-center justify-center">
+              <span className="text-2xl">🤖</span>
+            </div>
+            <p className="text-base font-display font-semibold text-dark-200 mb-1">Welcome to Manus Agent</p>
+            <p className="text-sm text-dark-500">Describe a task and the agent will execute it locally.</p>
           </div>
         )}
 
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
           >
             <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm ${
                 msg.role === "user"
-                  ? "bg-primary/20 text-dark-100"
-                  : "bg-dark-800 text-dark-200"
+                  ? "bg-primary/10 border border-primary/20 text-dark-100"
+                  : "bg-dark-800/60 border border-dark-700/40 text-dark-200"
               }`}
             >
               {msg.phase && (
-                <span className={`text-xs font-medium ${getPhaseColor(msg.phase)} block mb-1`}>
-                  {getPhaseLabel(msg.phase)}
+                <span className={`text-xs font-medium ${PHASE_COLORS[msg.phase] || "text-dark-300"} block mb-1`}>
+                  {PHASE_LABELS[msg.phase] || ""}
                 </span>
               )}
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
             </div>
           </div>
         ))}
@@ -118,7 +96,7 @@ export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProp
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-3 border-t border-dark-700">
+      <form onSubmit={handleSubmit} className="p-3 border-t border-dark-700/60">
         <div className="flex gap-2">
           <input
             type="text"
@@ -127,11 +105,12 @@ export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProp
             placeholder="Describe your task..."
             className="input-field text-sm"
             disabled={isRunning}
+            aria-label="Task description"
           />
           <button
             type="submit"
             disabled={isRunning || !input.trim()}
-            className="btn-primary px-3"
+            className="btn-primary px-3.5"
             aria-label="Send message"
           >
             <Send size={18} />

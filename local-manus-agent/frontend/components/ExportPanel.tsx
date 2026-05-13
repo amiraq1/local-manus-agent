@@ -2,12 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { Archive, Download, Loader } from "lucide-react";
+import { API } from "@/lib/config";
+import { formatSize } from "@/lib/utils";
 
 interface ExportPanelProps {
   taskId: string | null;
 }
-
-const API = "http://localhost:8000/api";
 
 export default function ExportPanel({ taskId }: ExportPanelProps) {
   const [exporting, setExporting] = useState(false);
@@ -21,6 +21,7 @@ export default function ExportPanel({ taskId }: ExportPanelProps) {
     setResult(null);
     try {
       const r = await fetch(`${API}/tasks/${taskId}/export`, { method: "POST" });
+      if (!r.ok) throw new Error("Export failed");
       const data = await r.json();
       if (data.success) {
         setResult({ filename: data.filename, size: data.size });
@@ -35,18 +36,12 @@ export default function ExportPanel({ taskId }: ExportPanelProps) {
 
   if (!taskId) return null;
 
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-t border-dark-700">
+    <div className="flex items-center gap-2 px-3 py-2.5 divider">
       <button
         onClick={handleExport}
         disabled={exporting}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-dark-800 hover:bg-dark-700 text-xs text-dark-200 disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dark-800/60 hover:bg-dark-800 text-xs text-dark-200 disabled:opacity-50 transition-colors"
       >
         {exporting ? <Loader size={12} className="animate-spin" /> : <Archive size={12} />}
         {exporting ? "Exporting..." : "Export ZIP"}
@@ -55,7 +50,7 @@ export default function ExportPanel({ taskId }: ExportPanelProps) {
       {result && (
         <a
           href={`${API}/tasks/${taskId}/export/download`}
-          className="flex items-center gap-1 px-2 py-1 rounded bg-green-900/20 text-green-400 text-[10px] hover:bg-green-900/30"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-900/15 text-emerald-400 text-[10px] hover:bg-emerald-900/25 transition-colors"
         >
           <Download size={10} />
           {result.filename} ({formatSize(result.size)})

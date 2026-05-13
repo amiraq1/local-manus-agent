@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Cpu, CheckCircle, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { API } from "@/lib/config";
 
 interface LLMStatus {
   configured_provider: string;
@@ -23,8 +24,6 @@ interface Preset {
   download_instructions?: string;
 }
 
-const API = "http://localhost:8000/api";
-
 export default function LLMStatusPanel() {
   const [status, setStatus] = useState<LLMStatus | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -32,6 +31,8 @@ export default function LLMStatusPanel() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [selectMsg, setSelectMsg] = useState<string | null>(null);
+  const [diagResult, setDiagResult] = useState<string | null>(null);
+  const [cliResult, setCliResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -39,11 +40,13 @@ export default function LLMStatusPanel() {
         fetch(`${API}/llm/status`),
         fetch(`${API}/llm/presets`),
       ]);
-      setStatus(await sRes.json());
-      const pData = await pRes.json();
-      setPresets(pData.presets || []);
-      setActivePreset(pData.active || "");
-    } catch { /* ignore */ }
+      if (sRes.ok) setStatus(await sRes.json());
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        setPresets(pData.presets || []);
+        setActivePreset(pData.active || "");
+      }
+    } catch { /* offline */ }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -81,108 +84,124 @@ export default function LLMStatusPanel() {
     }
   };
 
+  const handleDiagnose = async () => {
+    setDiagResult(null);
+    try {
+      const r = await fetch(`${API}/llm/litert/diagnostics`);
+      const d = await r.json();
+      const lines = [
+        `SDK: ${d.sdk_installed ? "✓ " + d.sdk_module : "✗ not installed"}`,
+        `CLI: ${d.cli_available ? "✓ " + d.cli_path : "✗ not found"}`,
+        `Model: ${d.model_path_exists ? "✓ " + d.model_path : "✗ not found"}`,
+        `Runtime: ${d.runtime_available ? "✓ ready" : "✗ " + d.status}`,
+        d.message,
+      ];
+      setDiagResult(lines.join("\n"));
+    } catch { setDiagResult("✗ Diagnostics failed"); }
+  };
+
+  const handleTestCli = async () => {
+    setCliResult(null);
+    try {
+      const r = await fetch(`${API}/llm/litert/test-cli`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: "اكتب جملة قصيرة بالعربية عن الذكاء الاصطناعي المحلي" }),
+      });
+      const d = await r.json();
+      setCliResult(d.success ? `✓ ${d.output}` : `✗ ${d.error || "Failed"}`);
+    } catch { setCliResult("✗ Test failed"); }
+  };
+
   if (!status) return null;
 
   return (
-    <div className="border-t border-dark-700">
+    <div className="divider">
       <div className="panel-header flex items-center gap-2">
-        <Cpu size={14} className={status.available ? "text-green-400" : "text-yellow-400"} />
+        <Cpu size={14} className={status.available ? "text-emerald-400" : "text-amber-400"} />
         <span>LLM</span>
-        <span className="text-[10px] text-dark-500 ml-auto">{status.active_provider || "none"}</span>
-        <button onClick={load} className="text-dark-400 hover:text-dark-200" aria-label="Refresh">
+        <span className="text-[10px] text-dark-500 ml-auto normal-case">{status.active_provider || "none"}</span>
+        <button onClick={load} className="text-dark-400 hover:text-dark-200 transition-colors" aria-label="Refresh LLM status">
           <RefreshCw size={11} />
         </button>
       </div>
-      <div className="p-2 space-y-2 text-xs">
+      <div className="p-2.5 space-y-2.5 text-xs">
         {/* Status */}
         <div className="flex items-center gap-2">
-          {status.available ? <CheckCircle size={11} className="text-green-400" /> : <XCircle size={11} className="text-red-400" />}
+          {status.available ? <CheckCircle size={11} className="text-emerald-400" /> : <XCircle size={11} className="text-red-400" />}
           <span className="text-dark-300">{status.active_provider}{status.model ? ` (${status.model})` : ""}</span>
         </div>
         {status.fallback_used && (
-          <div className="flex items-center gap-1 text-yellow-400">
+          <div className="flex items-center gap-1 text-amber-400">
             <AlertTriangle size={10} /> <span>Fallback active</span>
           </div>
         )}
 
         {/* Preset selector */}
-        <div className="space-y-1 pt-1 border-t border-dark-700">
-          <p className="text-[10px] text-dark-500">Model Preset:</p>
+        <div className="space-y-1.5 pt-1.5 border-t border-dark-700/60">
+          <p className="text-[10px] text-dark-500 uppercase tracking-wider">Model Preset</p>
           {presets.map((p) => (
             <button
               key={p.id}
               onClick={() => handleSelect(p.id)}
-              className={`w-full text-left px-2 py-1 rounded text-[11px] flex items-center gap-1.5 ${
-                p.id === activePreset ? "bg-primary/10 border border-primary/30 text-primary" : "bg-dark-800 text-dark-300 hover:bg-dark-700"
+              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-2 transition-all ${
+                p.id === activePreset
+                  ? "bg-primary/10 border border-primary/20 text-primary"
+                  : "bg-dark-800/40 text-dark-300 hover:bg-dark-800 border border-transparent"
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${p.model_available ? "bg-green-400" : "bg-dark-500"}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${p.model_available ? "bg-emerald-400" : "bg-dark-500"}`} />
               <span className="flex-1 truncate">{p.name}</span>
-              {p.id === activePreset && <span className="text-[9px]">active</span>}
+              {p.id === activePreset && <span className="badge-success">active</span>}
             </button>
           ))}
         </div>
 
         {selectMsg && (
-          <p className={`text-[10px] ${selectMsg.startsWith("✓") ? "text-green-400" : "text-yellow-400"}`}>
+          <p className={`text-[10px] ${selectMsg.startsWith("✓") ? "text-emerald-400" : "text-amber-400"}`}>
             {selectMsg}
           </p>
         )}
 
-        {/* Test */}
-        <button
-          onClick={handleTest}
-          disabled={testing}
-          className="w-full px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px] disabled:opacity-50"
-        >
-          {testing ? "Testing..." : "Test Model"}
-        </button>
-        {testResult && (
-          <p className={`text-[10px] truncate ${testResult.startsWith("✓") ? "text-green-400" : "text-red-400"}`}>
-            {testResult}
-          </p>
-        )}
+        {/* Actions */}
+        <div className="space-y-1.5">
+          <button
+            onClick={handleTest}
+            disabled={testing}
+            className="w-full px-2.5 py-1.5 rounded-lg bg-dark-800/40 text-dark-300 hover:bg-dark-800 text-[10px] disabled:opacity-50 transition-colors"
+          >
+            {testing ? "Testing..." : "Test Model"}
+          </button>
+          {testResult && (
+            <p className={`text-[10px] truncate ${testResult.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}>
+              {testResult}
+            </p>
+          )}
 
-        {/* Diagnose LiteRT */}
-        <button
-          onClick={async () => {
-            try {
-              const r = await fetch(`${API}/llm/litert/diagnostics`);
-              const d = await r.json();
-              const lines = [
-                `SDK: ${d.sdk_installed ? "✓ " + d.sdk_module : "✗ not installed"}`,
-                `CLI: ${d.cli_available ? "✓ " + d.cli_path : "✗ not found"}`,
-                `Model: ${d.model_path_exists ? "✓ " + d.model_path : "✗ not found"}`,
-                `Runtime: ${d.runtime_available ? "✓ ready" : "✗ " + d.status}`,
-                d.message,
-                ...(d.suggestions || []).map((s: string) => "• " + s),
-              ];
-              alert(lines.join("\n"));
-            } catch { alert("Diagnostics failed"); }
-          }}
-          className="w-full px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px]"
-        >
-          Diagnose LiteRT
-        </button>
+          <button
+            onClick={handleDiagnose}
+            className="w-full px-2.5 py-1.5 rounded-lg bg-dark-800/40 text-dark-300 hover:bg-dark-800 text-[10px] transition-colors"
+          >
+            Diagnose LiteRT
+          </button>
+          {diagResult && (
+            <pre className="text-[9px] text-dark-400 bg-dark-950/50 rounded p-2 whitespace-pre-wrap max-h-[80px] overflow-y-auto font-mono">
+              {diagResult}
+            </pre>
+          )}
 
-        {/* Test LiteRT CLI */}
-        <button
-          onClick={async () => {
-            try {
-              const r = await fetch(`${API}/llm/litert/test-cli`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: "اكتب جملة قصيرة بالعربية عن الذكاء الاصطناعي المحلي" }),
-              });
-              const d = await r.json();
-              if (d.success) alert("✓ LiteRT CLI output:\n\n" + d.output);
-              else alert("✗ " + (d.error || "Failed"));
-            } catch { alert("Test failed"); }
-          }}
-          className="w-full px-2 py-1 rounded bg-dark-800 text-dark-300 hover:bg-dark-700 text-[10px]"
-        >
-          Test LiteRT CLI
-        </button>
+          <button
+            onClick={handleTestCli}
+            className="w-full px-2.5 py-1.5 rounded-lg bg-dark-800/40 text-dark-300 hover:bg-dark-800 text-[10px] transition-colors"
+          >
+            Test LiteRT CLI
+          </button>
+          {cliResult && (
+            <p className={`text-[10px] truncate ${cliResult.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}>
+              {cliResult}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

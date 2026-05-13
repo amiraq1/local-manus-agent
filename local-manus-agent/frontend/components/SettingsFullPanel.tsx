@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Save, RotateCcw, AlertTriangle } from "lucide-react";
+import { API, APP_VERSION } from "@/lib/config";
 import ModelManagerPanel from "./ModelManagerPanel";
 import ModelImportPanel from "./ModelImportPanel";
+import ConfirmDialog from "./ConfirmDialog";
 
 type Tab = "general" | "models" | "security" | "sandbox" | "browser" | "memory" | "termux" | "about";
-
-const API = "http://localhost:8000/api";
 
 export default function SettingsFullPanel() {
   const [settings, setSettings] = useState<Record<string, any> | null>(null);
@@ -16,13 +16,13 @@ export default function SettingsFullPanel() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
+  const [showReset, setShowReset] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const r = await fetch(`${API}/settings`);
-      setSettings(await r.json());
-      setDirty(false);
-    } catch { /* ignore */ }
+      if (r.ok) { setSettings(await r.json()); setDirty(false); }
+    } catch { /* offline */ }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -58,14 +58,24 @@ export default function SettingsFullPanel() {
   };
 
   const reset = async () => {
-    if (!confirm("Reset all settings to defaults?")) return;
-    const r = await fetch(`${API}/settings/reset`, { method: "POST" });
-    const data = await r.json();
-    if (data.success) { setSettings(data.settings); setDirty(false); setMsg("Reset ✓"); }
+    setShowReset(false);
+    try {
+      const r = await fetch(`${API}/settings/reset`, { method: "POST" });
+      if (r.ok) {
+        const data = await r.json();
+        if (data.success) { setSettings(data.settings); setDirty(false); setMsg("Reset ✓"); }
+      }
+    } catch { /* ignore */ }
     setTimeout(() => setMsg(""), 3000);
   };
 
-  if (!settings) return <p className="text-dark-500 text-sm p-4">Loading...</p>;
+  if (!settings) return (
+    <div className="p-6 space-y-3">
+      <div className="skeleton h-4 w-32" />
+      <div className="skeleton h-3 w-48" />
+      <div className="skeleton h-3 w-40" />
+    </div>
+  );
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "general", label: "General" },
@@ -79,28 +89,28 @@ export default function SettingsFullPanel() {
   ];
 
   const Switch = ({ section, field, label, disabled }: { section: string; field: string; label: string; disabled?: boolean }) => (
-    <label className="flex items-center justify-between py-1">
+    <label className="flex items-center justify-between py-1.5">
       <span className="text-xs text-dark-300">{label}</span>
       <input type="checkbox" checked={settings[section]?.[field] ?? false} onChange={(e) => update(section, field, e.target.checked)} disabled={disabled}
-        className="w-4 h-4 accent-primary" />
+        className="w-4 h-4 accent-primary rounded" />
     </label>
   );
 
   const Select = ({ section, field, label, options }: { section: string; field: string; label: string; options: string[] }) => (
-    <label className="flex items-center justify-between py-1">
+    <label className="flex items-center justify-between py-1.5">
       <span className="text-xs text-dark-300">{label}</span>
       <select value={settings[section]?.[field] ?? ""} onChange={(e) => update(section, field, e.target.value)}
-        className="bg-dark-800 border border-dark-600 rounded px-2 py-0.5 text-xs text-dark-200">
+        className="bg-dark-800/60 border border-dark-700 rounded-lg px-2.5 py-1 text-xs text-dark-200 focus:outline-none focus:border-primary/40">
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
     </label>
   );
 
   const Input = ({ section, field, label, type = "text" }: { section: string; field: string; label: string; type?: string }) => (
-    <label className="flex items-center justify-between py-1">
+    <label className="flex items-center justify-between py-1.5">
       <span className="text-xs text-dark-300">{label}</span>
       <input type={type} value={settings[section]?.[field] ?? ""} onChange={(e) => update(section, field, type === "number" ? Number(e.target.value) : e.target.value)}
-        className="bg-dark-800 border border-dark-600 rounded px-2 py-0.5 text-xs text-dark-200 w-32 text-right" />
+        className="bg-dark-800/60 border border-dark-700 rounded-lg px-2.5 py-1 text-xs text-dark-200 w-32 text-right focus:outline-none focus:border-primary/40" />
     </label>
   );
 
@@ -109,17 +119,19 @@ export default function SettingsFullPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Tabs */}
-      <div className="flex gap-1 px-3 pt-2 pb-1 overflow-x-auto border-b border-dark-700">
+      <div className="flex gap-1 px-3 pt-2.5 pb-1.5 overflow-x-auto border-b border-dark-700/60" role="tablist" aria-label="Settings tabs">
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-2 py-1 rounded text-[10px] font-medium whitespace-nowrap ${tab === t.id ? "bg-primary/15 text-primary" : "text-dark-400 hover:text-dark-200"}`}>
+          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-medium whitespace-nowrap transition-all ${
+              tab === t.id ? "bg-primary/12 text-primary" : "text-dark-400 hover:text-dark-200"
+            }`}>
             {t.label}
           </button>
         ))}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2" role="tabpanel">
         {tab === "general" && (
           <>
             <Select section="general" field="app_theme" label="Theme" options={["dark", "light"]} />
@@ -143,7 +155,7 @@ export default function SettingsFullPanel() {
             <Switch section="security" field="allow_package_installs" label="Allow package installs" />
             <Switch section="security" field="allow_network_commands" label="Allow network commands" />
             {settings.security?.execution_mode === "autonomous" && (
-              <p className="text-[10px] text-yellow-400 flex items-center gap-1"><AlertTriangle size={10} /> Autonomous mode skips approval dialogs</p>
+              <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertTriangle size={10} /> Autonomous mode skips approval dialogs</p>
             )}
           </>
         )}
@@ -190,10 +202,10 @@ export default function SettingsFullPanel() {
 
         {tab === "about" && (
           <div className="space-y-2 text-xs text-dark-400">
-            <p className="text-dark-200 font-medium">Local Manus Agent v1.0.0</p>
+            <p className="text-dark-200 font-semibold font-display text-base">Local Manus Agent v{APP_VERSION}</p>
             <p>AI-powered local development agent</p>
-            <p>Settings are saved in <code className="text-primary">backend/app/user_config.json</code></p>
-            <p>System defaults are in <code className="text-primary">backend/config.py</code></p>
+            <p>Settings are saved in <code className="text-primary font-mono">backend/app/user_config.json</code></p>
+            <p>System defaults are in <code className="text-primary font-mono">backend/config.py</code></p>
             <a href="https://github.com/amiraq1/local-manus-agent" target="_blank" className="text-primary hover:underline block">GitHub Repository</a>
             <a href="https://github.com/amiraq1/local-manus-agent/releases" target="_blank" className="text-primary hover:underline block">Releases</a>
           </div>
@@ -201,18 +213,29 @@ export default function SettingsFullPanel() {
       </div>
 
       {/* Footer */}
-      <div className="border-t border-dark-700 px-3 py-2 flex items-center gap-2">
+      <div className="border-t border-dark-700/60 px-3 py-2.5 flex items-center gap-2">
         <button onClick={save} disabled={!dirty || saving}
-          className="flex items-center gap-1 px-3 py-1 rounded bg-primary text-white text-xs font-medium disabled:opacity-40">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-dark-950 text-xs font-semibold disabled:opacity-40 transition-all hover:shadow-[0_0_12px_rgba(0,229,160,0.2)]">
           <Save size={11} /> {saving ? "Saving..." : "Save"}
         </button>
-        <button onClick={reset} className="flex items-center gap-1 px-2 py-1 rounded text-dark-400 hover:text-dark-200 text-xs">
+        <button onClick={() => setShowReset(true)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-dark-400 hover:text-dark-200 text-xs transition-colors">
           <RotateCcw size={11} /> Reset
         </button>
-        {dirty && <span className="text-[10px] text-yellow-400 ml-auto">Unsaved changes</span>}
-        {msg && <span className="text-[10px] text-green-400 ml-auto">{msg}</span>}
+        {dirty && <span className="text-[10px] text-amber-400 ml-auto">Unsaved changes</span>}
+        {msg && <span className="text-[10px] text-emerald-400 ml-auto">{msg}</span>}
         {errors.length > 0 && <span className="text-[10px] text-red-400 ml-auto">{errors[0]}</span>}
       </div>
+
+      {showReset && (
+        <ConfirmDialog
+          title="Reset Settings"
+          message="Reset all settings to their defaults? This cannot be undone."
+          confirmLabel="Reset All"
+          variant="warning"
+          onConfirm={reset}
+          onCancel={() => setShowReset(false)}
+        />
+      )}
     </div>
   );
 }

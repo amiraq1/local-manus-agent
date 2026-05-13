@@ -7,9 +7,7 @@ import { FileItem } from "@/components/FileExplorer";
 import { ToolLogEntry } from "@/components/ToolLog";
 import { BrowserState } from "@/components/BrowserPanel";
 import { FileChange } from "@/components/FileDiffPanel";
-
-const WS_URL = "ws://localhost:8000/ws/agent";
-const API_URL = "http://localhost:8000/api";
+import { API, WS_URL } from "@/lib/config";
 
 export interface PendingApproval {
   approval_id: number;
@@ -47,33 +45,40 @@ export function useAgent() {
   });
   const [fileChanges, setFileChanges] = useState<FileChange[]>([]);
   const [agentSteps, setAgentSteps] = useState<Array<{agent: string; phase: string; status: "running" | "completed" | "error" | "skipped"; summary: string}>>([]);
+
   const wsRef = useRef<WebSocket | null>(null);
+  const messageQueueRef = useRef<string[]>([]);
+  const connectingRef = useRef(false);
 
-  const connectWs = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  // FIX #1: Use refs for callbacks called inside WS handler to avoid stale closures
+  const refreshFilesRef = useRef<() => void>(() => {});
+  const loadTaskHistoryRef = useRef<() => void>(() => {});
 
-    const ws = new WebSocket(WS_URL);
-
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      handleWsMessage(data);
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket disconnected");
-      setTimeout(connectWs, 3000);
-    };
-
-    ws.onerror = (err) => {
-      console.error("WebSocket error:", err);
-    };
-
-    wsRef.current = ws;
+  const refreshFiles = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/files`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setFiles(data.files || []);
+    } catch {
+      // Backend might not be running
+    }
   }, []);
+
+  const loadTaskHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/tasks`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setTaskHistory(data.tasks || []);
+    } catch {
+      // Backend might not be running
+    }
+  }, []);
+
+  // Keep refs current
+  refreshFilesRef.current = refreshFiles;
+  loadTaskHistoryRef.current = loadTaskHistory;
 
   const handleWsMessage = useCallback((data: Record<string, unknown>) => {
     switch (data.type) {
@@ -221,11 +226,12 @@ export function useAgent() {
 
       case "task_completed":
         setIsRunning(false);
-        refreshFiles();
-        loadTaskHistory();
+        // FIX #1: Use refs instead of direct calls — avoids stale closure
+        refreshFilesRef.current();
+        loadTaskHistoryRef.current();
         // Load file changes for the completed task
-        fetch(`${API_URL}/changes`)
-          .then((r) => r.json())
+        fetch(`${API}/changes`)
+          .then((r) => { if (r.ok) return r.json(); throw new Error(); })
           .then((d) => setFileChanges(d.changes || []))
           .catch(() => {});
         break;
@@ -246,6 +252,51 @@ export function useAgent() {
     }
   }, []);
 
+  // FIX #2: WebSocket connection with message queue — no more setTimeout race condition
+  const connectWs = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (connectingRef.current) return;
+    connectingRef.current = true;
+
+    const ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      connectingRef.current = false;
+      // Flush queued messages
+      while (messageQueueRef.current.length > 0) {
+        const msg = messageQueueRef.current.shift()!;
+        ws.send(msg);
+      }
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      handleWsMessage(data);
+    };
+
+    ws.onclose = () => {
+      connectingRef.current = false;
+      setTimeout(connectWs, 3000);
+    };
+
+    ws.onerror = () => {
+      connectingRef.current = false;
+    };
+
+    wsRef.current = ws;
+  }, [handleWsMessage]);
+
+  /** Queue-safe send — buffers if WS not open, flushes on connect */
+  const wsSend = useCallback((payload: object) => {
+    const msg = JSON.stringify(payload);
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(msg);
+    } else {
+      messageQueueRef.current.push(msg);
+      connectWs();
+    }
+  }, [connectWs]);
+
   const sendTask = useCallback(
     (message: string) => {
       setMessages((prev) => [
@@ -263,65 +314,27 @@ export function useAgent() {
       setPendingApproval(null);
       setAgentSteps([]);
 
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        connectWs();
-        setTimeout(() => {
-          wsRef.current?.send(
-            JSON.stringify({ type: "task", content: message, mode })
-          );
-        }, 500);
-      } else {
-        wsRef.current.send(
-          JSON.stringify({ type: "task", content: message, mode })
-        );
-      }
+      wsSend({ type: "task", content: message, mode });
     },
-    [connectWs, mode]
+    [wsSend, mode]
   );
 
   const approveCommand = useCallback(() => {
     if (!pendingApproval) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({ type: "approve", approval_id: pendingApproval.approval_id })
-      );
-    }
+    wsSend({ type: "approve", approval_id: pendingApproval.approval_id });
     setPendingApproval(null);
-  }, [pendingApproval]);
+  }, [pendingApproval, wsSend]);
 
   const rejectCommand = useCallback(() => {
     if (!pendingApproval) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({ type: "reject", approval_id: pendingApproval.approval_id })
-      );
-    }
+    wsSend({ type: "reject", approval_id: pendingApproval.approval_id });
     setPendingApproval(null);
-  }, [pendingApproval]);
-
-  const refreshFiles = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/files`);
-      const data = await res.json();
-      setFiles(data.files || []);
-    } catch {
-      // Backend might not be running
-    }
-  }, []);
-
-  const loadTaskHistory = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/tasks`);
-      const data = await res.json();
-      setTaskHistory(data.tasks || []);
-    } catch {
-      // Backend might not be running
-    }
-  }, []);
+  }, [pendingApproval, wsSend]);
 
   const loadTask = useCallback(async (taskId: string) => {
     try {
-      const res = await fetch(`${API_URL}/tasks/${taskId}`);
+      const res = await fetch(`${API}/tasks/${taskId}`);
+      if (!res.ok) return;
       const data = await res.json();
       if (data.error) return;
 
@@ -360,7 +373,7 @@ export function useAgent() {
 
   const switchMode = useCallback((newMode: "safe" | "autonomous") => {
     setMode(newMode);
-    fetch(`${API_URL}/mode`, {
+    fetch(`${API}/mode`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: newMode }),
@@ -379,7 +392,7 @@ export function useAgent() {
 
   const closeBrowser = useCallback(async () => {
     try {
-      await fetch(`${API_URL}/browser/close`, {
+      await fetch(`${API}/browser/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task_id: currentTaskId || "default" }),
@@ -396,38 +409,28 @@ export function useAgent() {
     }
   }, [currentTaskId]);
 
-  const loadFileChanges = useCallback(async () => {
-    try {
-      const url = currentTaskId
-        ? `${API_URL}/tasks/${currentTaskId}/changes`
-        : `${API_URL}/changes`;
-      const res = await fetch(url);
-      const data = await res.json();
-      setFileChanges(data.changes || []);
-    } catch {
-      // ignore
-    }
-  }, [currentTaskId]);
 
   const acceptChange = useCallback(async (changeId: string) => {
     try {
-      await fetch(`${API_URL}/changes/${changeId}/accept`, { method: "POST" });
+      const res = await fetch(`${API}/changes/${changeId}/accept`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to accept change");
       setFileChanges((prev) =>
         prev.map((c) => (c.id === changeId ? { ...c, status: "applied" as const } : c))
       );
     } catch {
-      // ignore
+      // FIX: Don't update state on failure
     }
   }, []);
 
   const rejectChange = useCallback(async (changeId: string) => {
     try {
-      await fetch(`${API_URL}/changes/${changeId}/reject`, { method: "POST" });
+      const res = await fetch(`${API}/changes/${changeId}/reject`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to reject change");
       setFileChanges((prev) =>
         prev.map((c) => (c.id === changeId ? { ...c, status: "rejected" as const } : c))
       );
     } catch {
-      // ignore
+      // FIX: Don't update state on failure
     }
   }, []);
 
@@ -453,7 +456,6 @@ export function useAgent() {
     loadTask,
     switchMode,
     closeBrowser,
-    loadFileChanges,
     acceptChange,
     rejectChange,
   };

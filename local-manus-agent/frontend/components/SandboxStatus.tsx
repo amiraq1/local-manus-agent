@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Container, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { API } from "@/lib/config";
 
 interface SandboxInfo {
   enabled: boolean;
@@ -19,49 +20,60 @@ interface SandboxInfo {
 
 export default function SandboxStatus() {
   const [info, setInfo] = useState<SandboxInfo | null>(null);
+  const [visible, setVisible] = useState(true);
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/sandbox/status");
-      const data = await res.json();
-      setInfo(data);
+      const res = await fetch(`${API}/sandbox/status`);
+      if (res.ok) setInfo(await res.json());
+      else setInfo(null);
     } catch {
       setInfo(null);
     }
   }, []);
 
+  // Visibility-based polling — pauses when tab/panel not visible
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 10000);
+    let interval: ReturnType<typeof setInterval>;
+    if (visible) {
+      interval = setInterval(fetchStatus, 10000);
+    }
     return () => clearInterval(interval);
-  }, [fetchStatus]);
+  }, [fetchStatus, visible]);
+
+  useEffect(() => {
+    const handleVisibility = () => setVisible(!document.hidden);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   if (!info) return null;
 
+  const statusBadge = !info.enabled
+    ? "badge-neutral"
+    : info.docker_available
+    ? "badge-info"
+    : "badge-warning";
+
+  const statusText = !info.enabled ? "Disabled" : info.docker_available ? "Ready" : "No Docker";
+
   return (
-    <div className="border-t border-dark-700">
+    <div className="divider">
       <div className="panel-header flex items-center gap-2">
-        <Container size={14} className={info.enabled ? "text-blue-400" : "text-dark-500"} />
+        <Container size={14} className={info.enabled ? "text-sky-400" : "text-dark-500"} />
         <span>Sandbox</span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded ml-auto ${
-          info.enabled && info.docker_available
-            ? "bg-blue-900/30 text-blue-400"
-            : info.enabled
-            ? "bg-yellow-900/30 text-yellow-400"
-            : "bg-dark-800 text-dark-500"
-        }`}>
-          {!info.enabled ? "Disabled" : info.docker_available ? "Ready" : "No Docker"}
-        </span>
-        <button onClick={fetchStatus} className="text-dark-400 hover:text-dark-200" aria-label="Refresh">
+        <span className={`${statusBadge} ml-auto`}>{statusText}</span>
+        <button onClick={fetchStatus} className="text-dark-400 hover:text-dark-200 transition-colors" aria-label="Refresh sandbox status">
           <RefreshCw size={12} />
         </button>
       </div>
 
       {info.enabled && (
-        <div className="p-2 space-y-1 text-xs">
+        <div className="p-2.5 space-y-1.5 text-xs">
           <div className="flex items-center gap-2">
             {info.network_enabled ? (
-              <Wifi size={11} className="text-green-400" />
+              <Wifi size={11} className="text-emerald-400" />
             ) : (
               <WifiOff size={11} className="text-red-400" />
             )}
@@ -95,7 +107,7 @@ export default function SandboxStatus() {
       )}
 
       {!info.enabled && (
-        <p className="p-2 text-xs text-dark-500">
+        <p className="p-2.5 text-xs text-dark-500">
           Set SANDBOX_ENABLED=True in config.py to enable
         </p>
       )}

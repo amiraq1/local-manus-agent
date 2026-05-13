@@ -23,12 +23,12 @@ export default function FileDiffPanel({ changes, onAccept, onReject }: FileDiffP
 
   if (changes.length === 0) return null;
 
-  const statusColor = (status: string) => {
+  const statusBadge = (status: string) => {
     switch (status) {
-      case "pending": return "text-yellow-400 bg-yellow-900/20";
-      case "accepted": case "applied": return "text-green-400 bg-green-900/20";
-      case "rejected": return "text-red-400 bg-red-900/20";
-      default: return "text-dark-400 bg-dark-800";
+      case "pending": return "badge-warning";
+      case "accepted": case "applied": return "badge-success";
+      case "rejected": return "badge-danger";
+      default: return "badge-neutral";
     }
   };
 
@@ -39,7 +39,7 @@ export default function FileDiffPanel({ changes, onAccept, onReject }: FileDiffP
       <div className="font-mono text-[11px] leading-relaxed overflow-x-auto max-h-[200px] overflow-y-auto">
         {lines.map((line, i) => {
           let cls = "text-dark-300";
-          if (line.startsWith("+") && !line.startsWith("+++")) cls = "text-green-400 bg-green-900/10";
+          if (line.startsWith("+") && !line.startsWith("+++")) cls = "text-emerald-400 bg-emerald-900/10";
           else if (line.startsWith("-") && !line.startsWith("---")) cls = "text-red-400 bg-red-900/10";
           else if (line.startsWith("@@")) cls = "text-cyan-400";
           else if (line.startsWith("---") || line.startsWith("+++")) cls = "text-dark-500";
@@ -54,50 +54,45 @@ export default function FileDiffPanel({ changes, onAccept, onReject }: FileDiffP
   };
 
   return (
-    <div className="border-t border-dark-700 max-h-[300px] flex flex-col">
+    <div className="divider max-h-[300px] flex flex-col">
       <div className="panel-header flex items-center gap-2">
-        <GitBranch size={14} />
+        <GitBranch size={14} className="text-primary" />
         <span>File Changes</span>
-        <span className="text-xs text-dark-500 ml-auto">
+        <span className="badge-warning ml-auto">
           {changes.filter(c => c.status === "pending").length} pending
         </span>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {changes.map((change) => (
-          <div key={change.id} className="rounded bg-dark-800/50 overflow-hidden">
-            {/* Header */}
+          <div key={change.id} className="rounded-lg bg-dark-800/40 overflow-hidden border border-dark-700/40">
             <button
               onClick={() => setExpandedId(expandedId === change.id ? null : change.id)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-dark-800"
+              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-dark-800/60 transition-colors"
+              aria-expanded={expandedId === change.id}
             >
               {expandedId === change.id ? (
                 <ChevronDown size={12} className="text-dark-400 shrink-0" />
               ) : (
                 <ChevronRight size={12} className="text-dark-400 shrink-0" />
               )}
-              <span className="text-xs text-dark-200 truncate flex-1">{change.path}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusColor(change.status)}`}>
-                {change.status}
-              </span>
+              <span className="text-xs text-dark-200 truncate flex-1 font-mono">{change.path}</span>
+              <span className={statusBadge(change.status)}>{change.status}</span>
             </button>
 
-            {/* Expanded diff + actions */}
             {expandedId === change.id && (
-              <div className="border-t border-dark-700">
-                <div className="bg-dark-950 p-1">
-                  {renderDiff(change.diff)}
-                </div>
+              <div className="border-t border-dark-700/40 animate-fade-in">
+                <div className="bg-dark-950/50 p-1">{renderDiff(change.diff)}</div>
                 {change.status === "pending" && (
-                  <div className="flex gap-1 p-2 border-t border-dark-700">
+                  <div className="flex gap-1.5 p-2 border-t border-dark-700/40">
                     <button
                       onClick={() => onAccept(change.id)}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-600/20 text-green-400 hover:bg-green-600/30"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-emerald-600/15 text-emerald-400 hover:bg-emerald-600/25 transition-colors"
                     >
                       <Check size={11} /> Accept
                     </button>
                     <button
                       onClick={() => onReject(change.id)}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-600/20 text-red-400 hover:bg-red-600/30"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-red-600/15 text-red-400 hover:bg-red-600/25 transition-colors"
                     >
                       <X size={11} /> Reject
                     </button>

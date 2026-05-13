@@ -14,11 +14,11 @@ interface AgentsPanelProps {
 }
 
 const AGENT_COLORS: Record<string, string> = {
-  MemoryAgent: "text-purple-400",
-  PlannerAgent: "text-blue-400",
+  MemoryAgent: "text-violet-400",
+  PlannerAgent: "text-sky-400",
   SecurityAgent: "text-red-400",
-  CoderAgent: "text-green-400",
-  ReviewerAgent: "text-yellow-400",
+  CoderAgent: "text-emerald-400",
+  ReviewerAgent: "text-amber-400",
   BrowserAgent: "text-cyan-400",
   Orchestrator: "text-primary",
 };
@@ -28,7 +28,7 @@ export default function AgentsPanel({ steps }: AgentsPanelProps) {
 
   const statusIcon = (status: string) => {
     switch (status) {
-      case "completed": return <CheckCircle size={12} className="text-green-400" />;
+      case "completed": return <CheckCircle size={12} className="text-emerald-400" />;
       case "running": return <Loader size={12} className="text-primary animate-spin" />;
       case "error": return <XCircle size={12} className="text-red-400" />;
       case "skipped": return <MinusCircle size={12} className="text-dark-500" />;
@@ -37,20 +37,20 @@ export default function AgentsPanel({ steps }: AgentsPanelProps) {
   };
 
   return (
-    <div className="border-t border-dark-700 max-h-[200px] flex flex-col">
+    <div className="divider max-h-[200px] flex flex-col" role="log" aria-label="Agent activity">
       <div className="panel-header flex items-center gap-2">
         <Users size={14} className="text-primary" />
         <span>Agents</span>
-        <span className="text-xs text-dark-500 ml-auto">{steps.length} steps</span>
+        <span className="badge-neutral ml-auto">{steps.length} steps</span>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
         {steps.map((step, i) => (
-          <div key={i} className="flex items-center gap-2 px-2 py-1 rounded bg-dark-800/30 text-xs">
+          <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-dark-800/30 text-xs animate-fade-in hover:bg-dark-800/50 transition-colors">
             {statusIcon(step.status)}
             <span className={`font-medium ${AGENT_COLORS[step.agent] || "text-dark-300"}`}>
               {step.agent}
             </span>
-            <span className="text-dark-500">·</span>
+            <span className="text-dark-600">·</span>
             <span className="text-dark-400 truncate flex-1">{step.summary || step.phase}</span>
           </div>
         ))}

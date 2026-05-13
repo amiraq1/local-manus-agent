@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, CheckCircle, AlertTriangle } from "lucide-react";
+import { Upload, X, CheckCircle, AlertTriangle, Play, MousePointerClick } from "lucide-react";
 import { API } from "@/lib/config";
 import { formatSize } from "@/lib/utils";
 
@@ -12,9 +12,14 @@ export default function ModelImportPanel() {
   const [modelName, setModelName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<{ name: string; size: number; sha256: string; path: string } | null>(null);
+  const [chunksUploaded, setChunksUploaded] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
+  const [result, setResult] = useState<{ name: string; size: number; sha256: string; path: string; model_id: string } | null>(null);
   const [error, setError] = useState("");
+  const [cancelled, setCancelled] = useState(false);
+  const [selectMsg, setSelectMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const importIdRef = useRef<string>("");
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -31,6 +36,8 @@ export default function ModelImportPanel() {
     setUploading(true);
     setError("");
     setProgress(0);
+    setCancelled(false);
+    setChunksUploaded(0);
 
     try {
       const startRes = await fetch(`${API}/models/import/start`, {
@@ -42,9 +49,17 @@ export default function ModelImportPanel() {
       if (!startData.accepted) { setError(startData.error || "Import rejected"); setUploading(false); return; }
 
       const importId = startData.import_id;
-      const totalChunks = startData.total_chunks;
+      importIdRef.current = importId;
+      const chunks = startData.total_chunks;
+      setTotalChunks(chunks);
 
-      for (let i = 0; i < totalChunks; i++) {
+      for (let i = 0; i < chunks; i++) {
+        if (cancelled) {
+          await fetch(`${API}/models/import/${importId}`, { method: "DELETE" });
+          setUploading(false);
+          return;
+        }
+
         const start = i * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, file.size);
         const chunk = file.slice(start, end);
@@ -61,7 +76,8 @@ export default function ModelImportPanel() {
           setUploading(false);
           return;
         }
-        setProgress(Math.round(((i + 1) / totalChunks) * 100));
+        setChunksUploaded(i + 1);
+        setProgress(Math.round(((i + 1) / chunks) * 100));
       }
 
       const finishRes = await fetch(`${API}/models/import/finish`, {
@@ -71,7 +87,7 @@ export default function ModelImportPanel() {
       });
       const finishData = await finishRes.json();
       if (finishData.success) {
-        setResult({ name: finishData.name, size: finishData.size, sha256: finishData.sha256, path: finishData.path });
+        setResult({ name: finishData.name, size: finishData.size, sha256: finishData.sha256, path: finishData.path, model_id: finishData.model_id });
       } else {
         setError(finishData.error || "Finish failed");
       }
@@ -79,6 +95,47 @@ export default function ModelImportPanel() {
       setError("Upload failed");
     }
     setUploading(false);
+  };
+
+  const handleCancel = async () => {
+    setCancelled(true);
+    if (importIdRef.current) {
+      await fetch(`${API}/models/import/${importIdRef.current}`, { method: "DELETE" });
+    }
+    setUploading(false);
+    setProgress(0);
+    setChunksUploaded(0);
+  };
+
+  const handleSelectModel = async () => {
+    if (!result) return;
+    try {
+      await fetch(`${API}/models/set-path`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model_id: "litert-custom", path: result.path }),
+      });
+      setSelectMsg("Model selected as active");
+      setTimeout(() => setSelectMsg(""), 3000);
+    } catch {
+      setSelectMsg("Failed to select model");
+    }
+  };
+
+  const handleTestModel = async () => {
+    if (!result) return;
+    try {
+      const res = await fetch(`${API}/llm/litert/test-cli`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: "Hello" }),
+      });
+      const data = await res.json();
+      setSelectMsg(data.success ? `Test OK: "${data.output?.slice(0, 60)}..."` : `Test failed: ${data.error}`);
+      setTimeout(() => setSelectMsg(""), 5000);
+    } catch {
+      setSelectMsg("Test request failed");
+    }
   };
 
   return (
@@ -91,6 +148,13 @@ export default function ModelImportPanel() {
         Models are not bundled with Local Manus Agent. Select a .litertlm file from your device to import it.
       </p>
 
+      {/* Cloudflare Tunnel warning */}
+      <div className="flex items-start gap-1.5 text-[9px] text-amber-400/90 bg-amber-900/10 border border-amber-700/20 rounded p-2">
+        <AlertTriangle size={10} className="shrink-0 mt-0.5" />
+        <span>For large models like Gemma E2B, open the site locally via <span className="font-mono">http://localhost:3000</span> instead of Cloudflare Tunnel.</span>
+      </div>
+
+      {/* File picker */}
       <input ref={fileRef} type="file" accept=".litertlm" onChange={handleFileSelect} className="hidden" />
       <button
         onClick={() => fileRef.current?.click()}
@@ -111,7 +175,12 @@ export default function ModelImportPanel() {
           <div className="w-full h-2 bg-dark-800 rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-primary to-emerald-300 transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
           </div>
-          <p className="text-[10px] text-dark-400 text-center">{progress}%</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-dark-400">{chunksUploaded}/{totalChunks} chunks — {progress}%</p>
+            <button onClick={handleCancel} className="flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300">
+              <X size={10} /> Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -127,8 +196,21 @@ export default function ModelImportPanel() {
             <CheckCircle size={12} className="text-emerald-400" />
             <span className="text-xs text-emerald-400 font-semibold">Model Imported</span>
           </div>
-          <p className="text-[10px] text-dark-300">{result.name} ({formatSize(result.size)})</p>
-          <p className="text-[9px] text-dark-500 font-mono truncate">SHA256: {result.sha256.slice(0, 16)}...</p>
+          <div className="text-[10px] text-dark-300 space-y-0.5">
+            <p><span className="text-dark-500">Name:</span> {result.name}</p>
+            <p><span className="text-dark-500">Size:</span> {formatSize(result.size)}</p>
+            <p className="font-mono truncate"><span className="text-dark-500">Path:</span> {result.path}</p>
+            <p className="font-mono truncate"><span className="text-dark-500">SHA256:</span> {result.sha256}</p>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={handleSelectModel} className="flex items-center gap-1 px-2 py-1 rounded bg-primary/20 text-primary text-[10px] hover:bg-primary/30 transition-colors">
+              <MousePointerClick size={10} /> Select Model
+            </button>
+            <button onClick={handleTestModel} className="flex items-center gap-1 px-2 py-1 rounded bg-dark-700 text-dark-200 text-[10px] hover:bg-dark-600 transition-colors">
+              <Play size={10} /> Test Model
+            </button>
+          </div>
+          {selectMsg && <p className="text-[10px] text-green-400">{selectMsg}</p>}
         </div>
       )}
 

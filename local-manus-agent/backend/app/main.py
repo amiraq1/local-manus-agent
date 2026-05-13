@@ -842,11 +842,33 @@ async def api_models_list():
 
 @app.get("/api/models/status")
 async def api_models_status():
-    """Get status of all registered models."""
+    """Get status of all registered models, including imported ones."""
     from app.llm.model_registry import get_all_models_status
     from app.user_config_manager import load_user_config
     cfg = load_user_config()
-    return {"models": get_all_models_status(cfg.get("model_paths", {}))}
+    models = get_all_models_status(cfg.get("model_paths", {}))
+
+    # Include imported models
+    for imp in cfg.get("imported_models", []):
+        imp_path = imp.get("path", "")
+        exists = bool(imp_path) and Path(imp_path).exists()
+        models.append({
+            "id": imp["id"],
+            "name": imp.get("name", imp["id"]),
+            "provider": "litert",
+            "description": f"Imported model ({imp.get('source', 'local')})",
+            "path": imp_path,
+            "exists": exists,
+            "file_size": imp.get("size", 0),
+            "estimated_size": "",
+            "status": "ready" if exists else "missing",
+            "license_note": "",
+            "download_commands": [],
+            "sha256": imp.get("sha256", ""),
+            "source": "imported",
+        })
+
+    return {"models": models}
 
 
 @app.post("/api/models/check-path")

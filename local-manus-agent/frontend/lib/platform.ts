@@ -4,6 +4,7 @@
 export type DeploymentProfile = "desktop" | "termux" | "low-memory" | "dev" | "production";
 
 export interface ProfileConfig {
+  platform: DeploymentProfile;
   animationLevel: "none" | "reduced" | "full";
   pollingIntervalMs: number;
   websocketRetryStrategy: "aggressive" | "exponential" | "fixed";
@@ -54,17 +55,18 @@ export function getProfileConfig(): ProfileConfig {
   switch (profile) {
     case "termux":
       return {
+        platform: profile,
         animationLevel: "none",
         pollingIntervalMs: 5000,
         websocketRetryStrategy: "fixed",
         loggingVerbosity: "error",
         cacheSizeMb: 10,
-        // Auto-disable unsupported features on Termux
         supportsPlaywright: false, 
         supportsSandbox: false, 
       };
     case "low-memory":
       return {
+        platform: profile,
         animationLevel: "reduced",
         pollingIntervalMs: 3000,
         websocketRetryStrategy: "exponential",
@@ -75,6 +77,7 @@ export function getProfileConfig(): ProfileConfig {
       };
     case "dev":
       return {
+        platform: profile,
         animationLevel: "full",
         pollingIntervalMs: 1000,
         websocketRetryStrategy: "aggressive",
@@ -87,6 +90,7 @@ export function getProfileConfig(): ProfileConfig {
     case "desktop":
     default:
       return {
+        platform: profile,
         animationLevel: "full",
         pollingIntervalMs: 2000,
         websocketRetryStrategy: "exponential",
@@ -110,6 +114,7 @@ import { useState, useEffect } from "react";
 
 export function useProfileConfig(): ProfileConfig {
   const [config, setConfig] = useState<ProfileConfig>({
+    platform: "desktop",
     animationLevel: "full",
     pollingIntervalMs: 2000,
     websocketRetryStrategy: "exponential",

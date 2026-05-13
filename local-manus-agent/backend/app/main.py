@@ -27,17 +27,19 @@ if is_termux():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "http://localhost:5173",  # Vite default
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_private_network_access_header(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+        return response
+    return await call_next(request)
 
 # Store active WebSocket connections per task for approval flow
 active_connections: dict[str, WebSocket] = {}
@@ -1157,7 +1159,12 @@ async def delete_artifact_endpoint(artifact_id: str):
 @app.websocket("/ws/agent")
 async def websocket_agent(websocket: WebSocket):
     """WebSocket endpoint for real-time agent communication."""
-    await websocket.accept()
+    try:
+        await websocket.accept()
+        logger.info(f"WebSocket connection accepted from {websocket.client}")
+    except Exception as e:
+        logger.error(f"WebSocket handshake failed: {e}")
+        return
 
     try:
         while True:

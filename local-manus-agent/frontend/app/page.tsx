@@ -73,8 +73,9 @@ export default function Home() {
   return (
     <ToastProvider>
       <div 
-        className={`h-screen flex flex-col ${profileConfig.platform === 'termux' ? 'reduce-motion' : ''}`}
+        className={`h-screen flex flex-col ${profileConfig.platform === 'termux' ? 'reduce-motion' : ''}`.trim()}
         data-platform={profileConfig.platform}
+        suppressHydrationWarning
       >
         {/* Header */}
         <header className="border-b border-dark-700/60 px-4 md:px-6 py-2.5 md:py-3 flex items-center gap-3">

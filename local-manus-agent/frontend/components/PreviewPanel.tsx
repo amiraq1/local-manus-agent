@@ -6,10 +6,11 @@ interface PreviewPanelProps {
   url: string | null;
 }
 
-import { supportsSandbox } from "@/lib/platform";
+import { useProfileConfig } from "@/lib/platform";
 
 export default function PreviewPanel({ url }: PreviewPanelProps) {
-  const hasSandbox = supportsSandbox();
+  const profileConfig = useProfileConfig();
+  const hasSandbox = profileConfig.supportsSandbox;
   
   return (
     <div className="flex-1 flex flex-col min-h-0">

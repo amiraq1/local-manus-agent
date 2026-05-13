@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, lazy, Suspense } from "react";
+import { useState, Suspense } from "react";
+import dynamic from "next/dynamic";
 import ChatPanel from "@/components/ChatPanel";
 import PlanPanel from "@/components/PlanPanel";
 import FileExplorer from "@/components/FileExplorer";
@@ -21,13 +22,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
 import { useAgent } from "@/lib/useAgent";
 import { APP_VERSION } from "@/lib/config";
-import { getProfileConfig } from "@/lib/platform";
-
-// Lazy-load heavy panels
-const SettingsFullPanel = lazy(() => import("@/components/SettingsFullPanel"));
-const TemplatesPanel = lazy(() => import("@/components/TemplatesPanel"));
-const BrowserPanel = lazy(() => import("@/components/BrowserPanel"));
-const FileDiffPanel = lazy(() => import("@/components/FileDiffPanel"));
+import { useProfileConfig } from "@/lib/platform";
 
 function PanelLoader() {
   return (
@@ -38,6 +33,13 @@ function PanelLoader() {
     </div>
   );
 }
+
+// Lazy-load heavy panels using next/dynamic to avoid SSR hydration errors
+const SettingsFullPanel = dynamic(() => import("@/components/SettingsFullPanel"), { ssr: false, loading: () => <PanelLoader /> });
+const TemplatesPanel = dynamic(() => import("@/components/TemplatesPanel"), { ssr: false, loading: () => <PanelLoader /> });
+const BrowserPanel = dynamic(() => import("@/components/BrowserPanel"), { ssr: false, loading: () => <PanelLoader /> });
+const FileDiffPanel = dynamic(() => import("@/components/FileDiffPanel"), { ssr: false, loading: () => <PanelLoader /> });
+
 
 export default function Home() {
   const {
@@ -66,7 +68,7 @@ export default function Home() {
   } = useAgent();
 
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
-  const profileConfig = getProfileConfig();
+  const profileConfig = useProfileConfig();
 
   return (
     <ToastProvider>
@@ -110,9 +112,7 @@ export default function Home() {
           <div className="flex-1 flex flex-col">
             <ErrorBoundary>
               <PreviewPanel url={previewUrl} />
-              <Suspense fallback={<PanelLoader />}>
-                <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
-              </Suspense>
+              <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
             </ErrorBoundary>
           </div>
 
@@ -121,9 +121,7 @@ export default function Home() {
             <ErrorBoundary>
               <FileExplorer files={files} onRefresh={refreshFiles} />
               {profileConfig.supportsPlaywright && (
-                <Suspense fallback={<PanelLoader />}>
-                  <BrowserPanel state={browserState} onClose={closeBrowser} />
-                </Suspense>
+                <BrowserPanel state={browserState} onClose={closeBrowser} />
               )}
               <ArtifactsPanel taskId={currentTaskId} />
               <MemoryPanel taskId={currentTaskId} />
@@ -147,9 +145,7 @@ export default function Home() {
             {mobileTab === "files" && (
               <div className="flex-1 flex flex-col overflow-y-auto">
                 <FileExplorer files={files} onRefresh={refreshFiles} />
-                <Suspense fallback={<PanelLoader />}>
-                  <TemplatesPanel taskId={currentTaskId} onGenerated={refreshFiles} />
-                </Suspense>
+                <TemplatesPanel taskId={currentTaskId} onGenerated={refreshFiles} />
                 <PreviewPanel url={previewUrl} />
                 <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
               </div>
@@ -175,9 +171,7 @@ export default function Home() {
             )}
             {mobileTab === "settings" && (
               <div className="flex-1 overflow-y-auto">
-                <Suspense fallback={<PanelLoader />}>
-                  <SettingsFullPanel />
-                </Suspense>
+                <SettingsFullPanel />
               </div>
             )}
           </ErrorBoundary>

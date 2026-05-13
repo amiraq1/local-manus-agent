@@ -40,7 +40,7 @@ const PHASE_LABELS: Record<string, string> = {
   error: "❌ Error",
 };
 
-import { getProfileConfig } from "@/lib/platform";
+import { useProfileConfig } from "@/lib/platform";
 import React from "react";
 
 const MessageItem = React.memo(({ msg, animationLevel }: { msg: Message, animationLevel: string }) => {
@@ -73,7 +73,7 @@ MessageItem.displayName = "MessageItem";
 export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const profileConfig = getProfileConfig();
+  const profileConfig = useProfileConfig();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

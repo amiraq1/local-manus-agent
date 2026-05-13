@@ -6,7 +6,6 @@ export const metadata: Metadata = {
   description: "AI-powered local development agent — plan, code, review, and verify on your machine",
   manifest: "/manifest.json",
   appleWebApp: {
-    capable: true,
     statusBarStyle: "black-translucent",
     title: "ManusLocal",
   },

@@ -105,3 +105,23 @@ export function supportsPlaywright(): boolean {
 export function supportsSandbox(): boolean {
   return getProfileConfig().supportsSandbox;
 }
+
+import { useState, useEffect } from "react";
+
+export function useProfileConfig(): ProfileConfig {
+  const [config, setConfig] = useState<ProfileConfig>({
+    animationLevel: "full",
+    pollingIntervalMs: 2000,
+    websocketRetryStrategy: "exponential",
+    loggingVerbosity: "info",
+    cacheSizeMb: 100,
+    supportsPlaywright: true,
+    supportsSandbox: true,
+  });
+
+  useEffect(() => {
+    setConfig(getProfileConfig());
+  }, []);
+
+  return config;
+}

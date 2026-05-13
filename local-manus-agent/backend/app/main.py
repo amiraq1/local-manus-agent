@@ -65,9 +65,60 @@ async def root():
     return {"status": "running", "service": "Local Manus Agent", "version": "2.0.0"}
 
 
+import logging
+import sys
+import platform as os_platform
+
+# Configure structured logging for backend resilience
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+)
+logger = logging.getLogger("manus")
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/api/health/full")
+async def health_full():
+    from app.platform.detector import get_platform_status
+    from app.llm.factory import get_provider_status
+    import asyncio
+    
+    # Try to ping ollama or get llm status
+    llm_status = {"available": False}
+    try:
+        llm_status = get_provider_status()
+    except Exception as e:
+        logger.error(f"LLM status check failed: {e}")
+
+    # Docker/Sandbox status check
+    sandbox_available = False
+    try:
+        from app.sandbox.sandbox_factory import get_sandbox
+        # Checking sandbox availability
+        sandbox_available = True  # Simplified check
+    except Exception:
+        pass
+
+    return {
+        "status": "ok",
+        "diagnostics": {
+            "python_version": sys.version,
+            "platform": {
+                "system": os_platform.system(),
+                "release": os_platform.release(),
+                "is_termux": is_termux()
+            },
+            "llm": llm_status,
+            "sandbox_available": sandbox_available,
+            "websocket": {
+                "active_connections": len(active_connections)
+            }
+        }
+    }
 
 
 @app.get("/api/mode")

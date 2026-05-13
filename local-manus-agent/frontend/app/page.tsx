@@ -9,8 +9,6 @@ import ToolLog from "@/components/ToolLog";
 import TaskHistory from "@/components/TaskHistory";
 import ApprovalDialog from "@/components/ApprovalDialog";
 import ModeSwitch from "@/components/ModeSwitch";
-import BrowserPanel from "@/components/BrowserPanel";
-import FileDiffPanel from "@/components/FileDiffPanel";
 import SandboxStatus from "@/components/SandboxStatus";
 import LLMStatusPanel from "@/components/LLMStatusPanel";
 import ArtifactsPanel from "@/components/ArtifactsPanel";
@@ -23,10 +21,13 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
 import { useAgent } from "@/lib/useAgent";
 import { APP_VERSION } from "@/lib/config";
+import { getProfileConfig } from "@/lib/platform";
 
-// Lazy-load settings panels (rarely visited)
+// Lazy-load heavy panels
 const SettingsFullPanel = lazy(() => import("@/components/SettingsFullPanel"));
 const TemplatesPanel = lazy(() => import("@/components/TemplatesPanel"));
+const BrowserPanel = lazy(() => import("@/components/BrowserPanel"));
+const FileDiffPanel = lazy(() => import("@/components/FileDiffPanel"));
 
 function PanelLoader() {
   return (
@@ -65,6 +66,7 @@ export default function Home() {
   } = useAgent();
 
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
+  const profileConfig = getProfileConfig();
 
   return (
     <ToastProvider>
@@ -108,7 +110,9 @@ export default function Home() {
           <div className="flex-1 flex flex-col">
             <ErrorBoundary>
               <PreviewPanel url={previewUrl} />
-              <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
+              <Suspense fallback={<PanelLoader />}>
+                <FileDiffPanel changes={fileChanges} onAccept={acceptChange} onReject={rejectChange} />
+              </Suspense>
             </ErrorBoundary>
           </div>
 
@@ -116,7 +120,11 @@ export default function Home() {
           <div className="w-[320px] flex flex-col border-l border-dark-700/60 overflow-y-auto">
             <ErrorBoundary>
               <FileExplorer files={files} onRefresh={refreshFiles} />
-              <BrowserPanel state={browserState} onClose={closeBrowser} />
+              {profileConfig.supportsPlaywright && (
+                <Suspense fallback={<PanelLoader />}>
+                  <BrowserPanel state={browserState} onClose={closeBrowser} />
+                </Suspense>
+              )}
               <ArtifactsPanel taskId={currentTaskId} />
               <MemoryPanel taskId={currentTaskId} />
               <SandboxStatus />

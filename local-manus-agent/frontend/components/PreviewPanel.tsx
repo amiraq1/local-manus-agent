@@ -6,7 +6,11 @@ interface PreviewPanelProps {
   url: string | null;
 }
 
+import { supportsSandbox } from "@/lib/platform";
+
 export default function PreviewPanel({ url }: PreviewPanelProps) {
+  const hasSandbox = supportsSandbox();
+  
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="panel-header flex items-center justify-between">
@@ -31,7 +35,7 @@ export default function PreviewPanel({ url }: PreviewPanelProps) {
             src={url}
             className="w-full h-full border-0"
             title="Preview"
-            sandbox="allow-scripts allow-forms allow-popups"
+            {...(hasSandbox ? { sandbox: "allow-scripts allow-forms allow-same-origin" } : {})}
           />
         ) : (
           <div className="text-center text-dark-500">

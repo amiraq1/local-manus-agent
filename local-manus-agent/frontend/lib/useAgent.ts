@@ -8,6 +8,7 @@ import { ToolLogEntry } from "@/components/ToolLog";
 import { BrowserState } from "@/components/BrowserPanel";
 import { FileChange } from "@/components/FileDiffPanel";
 import { API, WS_URL } from "@/lib/config";
+import { getProfileConfig } from "@/lib/platform";
 
 export interface PendingApproval {
   approval_id: number;
@@ -49,6 +50,9 @@ export function useAgent() {
   const wsRef = useRef<WebSocket | null>(null);
   const messageQueueRef = useRef<string[]>([]);
   const connectingRef = useRef(false);
+  const isUnmountedRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const profileConfig = getProfileConfig();
 
   // FIX #1: Use refs for callbacks called inside WS handler to avoid stale closures
   const refreshFilesRef = useRef<() => void>(() => {});
@@ -262,6 +266,7 @@ export function useAgent() {
 
     ws.onopen = () => {
       connectingRef.current = false;
+      retryCountRef.current = 0; // Reset retry count on success
       // Flush queued messages
       while (messageQueueRef.current.length > 0) {
         const msg = messageQueueRef.current.shift()!;
@@ -276,7 +281,14 @@ export function useAgent() {
 
     ws.onclose = () => {
       connectingRef.current = false;
-      setTimeout(connectWs, 3000);
+      if (!isUnmountedRef.current) {
+        let delay = profileConfig.pollingIntervalMs;
+        if (profileConfig.websocketRetryStrategy === "exponential") {
+          delay = Math.min(delay * Math.pow(2, retryCountRef.current), 30000);
+        }
+        retryCountRef.current++;
+        setTimeout(connectWs, delay);
+      }
     };
 
     ws.onerror = () => {
@@ -382,11 +394,17 @@ export function useAgent() {
 
   // Connect on mount
   useEffect(() => {
+    isUnmountedRef.current = false;
     connectWs();
     refreshFiles();
     loadTaskHistory();
     return () => {
-      wsRef.current?.close();
+      isUnmountedRef.current = true;
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.close();
+      }
     };
   }, [connectWs, refreshFiles, loadTaskHistory]);
 

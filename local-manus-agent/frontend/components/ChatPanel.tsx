@@ -40,9 +40,40 @@ const PHASE_LABELS: Record<string, string> = {
   error: "❌ Error",
 };
 
+import { getProfileConfig } from "@/lib/platform";
+import React from "react";
+
+const MessageItem = React.memo(({ msg, animationLevel }: { msg: Message, animationLevel: string }) => {
+  const isUser = msg.role === "user";
+  const animationClass = animationLevel === "none" ? "" : "animate-fade-in";
+  
+  return (
+    <div
+      className={`flex ${isUser ? "justify-end" : "justify-start"} ${animationClass}`}
+    >
+      <div
+        className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm ${
+          isUser
+            ? "bg-primary/10 border border-primary/20 text-dark-100"
+            : "bg-dark-800/60 border border-dark-700/40 text-dark-200"
+        }`}
+      >
+        {msg.phase && (
+          <span className={`text-xs font-medium ${PHASE_COLORS[msg.phase] || "text-dark-300"} block mb-1`}>
+            {PHASE_LABELS[msg.phase] || ""}
+          </span>
+        )}
+        <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+      </div>
+    </div>
+  );
+});
+MessageItem.displayName = "MessageItem";
+
 export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const profileConfig = getProfileConfig();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,7 +93,7 @@ export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProp
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3" role="log" aria-live="polite" aria-label="Chat messages">
         {messages.length === 0 && (
-          <div className="text-center mt-12 animate-fade-in">
+          <div className={`text-center mt-12 ${profileConfig.animationLevel !== "none" ? "animate-fade-in" : ""}`}>
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-400/10 flex items-center justify-center">
               <span className="text-2xl">🤖</span>
             </div>
@@ -72,25 +103,7 @@ export default function ChatPanel({ messages, isRunning, onSend }: ChatPanelProp
         )}
 
         {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
-          >
-            <div
-              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm ${
-                msg.role === "user"
-                  ? "bg-primary/10 border border-primary/20 text-dark-100"
-                  : "bg-dark-800/60 border border-dark-700/40 text-dark-200"
-              }`}
-            >
-              {msg.phase && (
-                <span className={`text-xs font-medium ${PHASE_COLORS[msg.phase] || "text-dark-300"} block mb-1`}>
-                  {PHASE_LABELS[msg.phase] || ""}
-                </span>
-              )}
-              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-            </div>
-          </div>
+          <MessageItem key={msg.id} msg={msg} animationLevel={profileConfig.animationLevel} />
         ))}
         <div ref={messagesEndRef} />
       </div>

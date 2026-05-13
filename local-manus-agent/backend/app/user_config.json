@@ -7,6 +7,11 @@
   "llm": {
     "active_preset": "ollama-qwen-coder",
     "ollama_base_url": "http://localhost:11434",
+    "litert_runtime": "cli",
+    "litert_cli_path": "",
+    "litert_backend": "cpu",
+    "litert_timeout": 180,
+    "litert_prompt_mode": "temp_file",
     "litert_device": "cpu",
     "litert_temperature": 0.7,
     "litert_max_tokens": 4096,
@@ -47,6 +52,19 @@
     "host": "127.0.0.1"
   },
   "model_paths": {
-    "gemma-e2b-litert": "D:\\local-manus-agent\\local-manus-agent\\models\\gemma-e2b\\gemma-3n-E2B-it-int4.litertlm"
-  }
+    "gemma-e2b-litert": "D:\\local-manus-agent\\local-manus-agent\\models\\gemma-e2b\\gemma-3n-E2B-it-int4.litertlm",
+    "imported-54e7f3cd-b7b": "D:\\local-manus-agent-1\\local-manus-agent\\backend\\models\\imported\\fake.litertlm"
+  },
+  "imported_models": [
+    {
+      "id": "imported-54e7f3cd-b7b",
+      "name": "Test Model",
+      "provider": "litert",
+      "path": "D:\\local-manus-agent-1\\local-manus-agent\\backend\\models\\imported\\fake.litertlm",
+      "size": 102400,
+      "sha256": "1c39797e7a863457124a10eca29092e362de1a295d88ef74e8e4e5ed9f49a1ce",
+      "created_at": 1778680879.2308173,
+      "source": "local_import"
+    }
+  ]
 }

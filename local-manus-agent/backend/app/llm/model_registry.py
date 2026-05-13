@@ -128,10 +128,50 @@ def get_model_status(model_id: str, user_path: str = "") -> dict:
 
 
 def get_all_models_status(user_paths: dict = None) -> list[dict]:
-    """Get status of all registered models."""
+    """Get status of all registered and imported models."""
+    from app.user_config_manager import load_user_config
+    
     paths = user_paths or {}
     results = []
+    
+    # Static registry
     for model_id in MODEL_REGISTRY:
         user_path = paths.get(model_id, "")
         results.append(get_model_status(model_id, user_path))
+        
+    # Imported models
+    cfg = load_user_config()
+    imported = cfg.get("imported_models", [])
+    
+    for imp in imported:
+        path = imp.get("path", "")
+        exists = bool(path) and Path(path).exists()
+        size = Path(path).stat().st_size if exists else 0
+        
+        sdk_available = True
+        try:
+            import litert_lm  # type: ignore
+        except ImportError:
+            sdk_available = False
+            
+        status = "ready" if exists and sdk_available else "missing"
+        if exists and not sdk_available:
+            status = "sdk_missing"
+            
+        results.append({
+            "id": imp["id"],
+            "name": imp["name"],
+            "provider": imp["provider"],
+            "description": "Imported local model.",
+            "path": path,
+            "exists": exists,
+            "sdk_available": sdk_available,
+            "file_size": size,
+            "estimated_size": f"{imp.get('size', 0) / (1024**3):.1f} GB",
+            "status": status,
+            "license_note": "Imported locally",
+            "download_commands": [],
+            "is_imported": True
+        })
+        
     return results

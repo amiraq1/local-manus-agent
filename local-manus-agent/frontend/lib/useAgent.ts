@@ -8,7 +8,7 @@ import { ToolLogEntry } from "@/components/ToolLog";
 import { BrowserState } from "@/components/BrowserPanel";
 import { FileChange } from "@/components/FileDiffPanel";
 import { API, WS_URL } from "@/lib/config";
-import { getProfileConfig } from "@/lib/platform";
+import { useProfileConfig } from "@/lib/platform";
 
 export interface PendingApproval {
   approval_id: number;
@@ -52,8 +52,7 @@ export function useAgent() {
   const connectingRef = useRef(false);
   const isUnmountedRef = useRef(false);
   const retryCountRef = useRef(0);
-  const profileConfig = getProfileConfig();
-
+  const profileConfig = useProfileConfig();
   // FIX #1: Use refs for callbacks called inside WS handler to avoid stale closures
   const refreshFilesRef = useRef<() => void>(() => {});
   const loadTaskHistoryRef = useRef<() => void>(() => {});

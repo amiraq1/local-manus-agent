@@ -72,7 +72,10 @@ export default function Home() {
 
   return (
     <ToastProvider>
-      <div className="h-screen flex flex-col">
+      <div 
+        className={`h-screen flex flex-col ${profileConfig.platform === 'termux' ? 'reduce-motion' : ''}`}
+        data-platform={profileConfig.platform}
+      >
         {/* Header */}
         <header className="border-b border-dark-700/60 px-4 md:px-6 py-2.5 md:py-3 flex items-center gap-3">
           <div className="w-8 h-8 bg-gradient-to-br from-primary to-emerald-400 rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(0,229,160,0.2)]">

@@ -27,7 +27,13 @@ if is_termux():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:5173",  # Vite default
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,6 +81,22 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
 )
 logger = logging.getLogger("manus")
+import shutil
+
+def _get_mem_info():
+    try:
+        import psutil
+        mem = psutil.virtual_memory()
+        return {"total": mem.total, "available": mem.available, "percent": mem.percent}
+    except ImportError:
+        return {"error": "psutil not installed"}
+
+def _get_disk_info():
+    try:
+        usage = shutil.disk_usage(".")
+        return {"total": usage.total, "free": usage.free, "used": usage.used}
+    except Exception:
+        return {"error": "disk info failed"}
 
 @app.get("/api/health")
 async def health():
@@ -110,7 +132,9 @@ async def health_full():
             "platform": {
                 "system": os_platform.system(),
                 "release": os_platform.release(),
-                "is_termux": is_termux()
+                "is_termux": is_termux(),
+                "memory": _get_mem_info(),
+                "disk": _get_disk_info()
             },
             "llm": llm_status,
             "sandbox_available": sandbox_available,

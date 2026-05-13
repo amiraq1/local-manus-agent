@@ -35,7 +35,27 @@ def run_command(command: str) -> dict:
         }
 
     if SANDBOX_ENABLED:
-        return _run_in_sandbox(command)
+        from app.sandbox.docker_sandbox import get_docker_sandbox
+        if get_docker_sandbox()._docker_available():
+            return _run_in_sandbox(command)
+        else:
+            # Fallback to local if docker is missing but enabled in config
+            # (unless it's Termux, where apply_termux_config should have disabled it anyway)
+            from app.platform.detector import is_termux
+            if is_termux():
+                 return {
+                    "success": False,
+                    "error": "Docker is not available on Termux. Sandbox should be disabled.",
+                    "command": command,
+                    "sandbox": True,
+                }
+            
+            # On desktop/others, we can log and fallback to local for resilience
+            # But we should mark it as NOT sandboxed for security awareness
+            res = _run_locally(command)
+            res["sandbox"] = False
+            res["warning"] = "Docker not available; fell back to host execution."
+            return res
     else:
         return _run_locally(command)
 

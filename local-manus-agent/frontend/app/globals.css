@@ -135,4 +135,21 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-emerald-300 to-primary;
   }
+
+  /* Low-power / Mobile optimizations */
+  .reduce-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reduce-motion .shadow-xl,
+  .reduce-motion .shadow-2xl,
+  .reduce-motion .backdrop-blur-sm,
+  .reduce-motion .backdrop-blur-md {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    background-color: theme('colors.dark.900') !important;
+  }
 }

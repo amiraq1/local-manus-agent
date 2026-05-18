@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react";
 import dynamic from "next/dynamic";
+import { Settings as SettingsIcon, X } from "lucide-react";
 import ChatPanel from "@/components/ChatPanel";
 import PlanPanel from "@/components/PlanPanel";
 import FileExplorer from "@/components/FileExplorer";
@@ -69,6 +70,7 @@ export default function Home() {
   } = useAgent();
 
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
+  const [showSettings, setShowSettings] = useState(false);
   const profileConfig = useProfileConfig();
 
   return (
@@ -98,6 +100,15 @@ export default function Home() {
                 <span className="hidden sm:inline font-medium">Working...</span>
               </span>
             )}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-dark-400 hover:text-primary hover:bg-primary/10 transition-all"
+              aria-label="Open settings"
+              title="Settings"
+            >
+              <SettingsIcon size={16} />
+              <span className="text-xs font-medium">Settings</span>
+            </button>
           </div>
         </header>
 
@@ -186,6 +197,33 @@ export default function Home() {
 
         {/* Mobile Bottom Nav */}
         <MobileNav activeTab={mobileTab} onTabChange={setMobileTab} />
+
+        {/* Desktop Settings Modal */}
+        {showSettings && (
+          <div
+            className="hidden md:flex fixed inset-0 bg-dark-950/80 backdrop-blur-sm z-50 items-start justify-center p-6 overflow-y-auto"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Settings"
+          >
+            <div className="bg-dark-900 border border-dark-700/60 rounded-xl shadow-2xl w-full max-w-3xl my-auto flex flex-col max-h-[88vh] overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700/60">
+                <h2 className="text-sm font-semibold text-dark-50 font-display tracking-tight">Settings</h2>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-1 rounded-lg text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
+                  aria-label="Close settings"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <SettingsFullPanel />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Approval Dialog */}
         {pendingApproval && (

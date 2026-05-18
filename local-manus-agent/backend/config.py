@@ -1,5 +1,8 @@
 """Configuration for Local Manus Agent backend."""
+import os
 from pathlib import Path
+
+APP_VERSION = "1.2.0"
 
 # Base paths
 BASE_DIR = Path(__file__).parent
@@ -9,11 +12,11 @@ WORKSPACE_DIR = BASE_DIR / "workspace"
 WORKSPACE_DIR.mkdir(exist_ok=True)
 
 # LLM Configuration
-LLM_PROVIDER = "ollama"  # Options: "ollama", "litert"
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "ollama")  # Options: "ollama", "litert"
 
 OLLAMA_CONFIG = {
-    "base_url": "http://localhost:11434",
-    "model": "qwen2.5-coder:7b",
+    "base_url": os.environ.get("OLLAMA_BASE_URL") or os.environ.get("OLLAMA_HOST", "http://localhost:11434"),
+    "model": os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b"),
     "temperature": 0.7,
     "max_tokens": 4096,
 }
@@ -73,6 +76,18 @@ ALLOW_AUTONOMOUS_COMMANDS = False
 BROWSER_ALLOW_EXTERNAL_URLS = False  # Only localhost by default
 BROWSER_HEADLESS = True
 BROWSER_TIMEOUT = 15000  # ms
+
+# HTTP/API exposure settings
+ALLOW_REMOTE_ACCESS = os.environ.get("ALLOW_REMOTE_ACCESS", "false").lower() in ("1", "true", "yes")
+API_TOKEN = os.environ.get("LOCAL_MANUS_API_TOKEN", "")
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001",
+    ).split(",")
+    if origin.strip()
+]
 
 # Docker Sandbox settings
 SANDBOX_ENABLED = True

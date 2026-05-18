@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { API } from "@/lib/config";
 
 /**
  * ExecutivePanel — Direct interface to the Executive Agent.
@@ -42,7 +43,7 @@ export default function ExecutivePanel() {
     setInput("");
 
     try {
-      const res = await fetch("/api/executive", {
+      const res = await fetch(`${API}/executive`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userInput }),

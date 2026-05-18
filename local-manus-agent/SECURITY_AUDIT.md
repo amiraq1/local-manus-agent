@@ -1,8 +1,8 @@
 # Security Audit Report
 
-**Version**: v0.10.0  
-**Date**: 2026-05-12  
-**Status**: Pre-v1.0 hardening
+**Version**: v1.2.0
+**Date**: 2026-05-18
+**Status**: Local-first hardening review
 
 ## Threat Model
 

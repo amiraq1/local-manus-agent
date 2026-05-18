@@ -60,6 +60,17 @@ def write_file(path: str, content: str) -> dict:
     if not result.get("success"):
         return result
 
+    if result.get("status") == "pending":
+        return {
+            "success": True,
+            "path": path,
+            "size": len(content),
+            "change_id": result.get("change_id"),
+            "diff": result.get("diff", ""),
+            "status": "pending",
+            "pending_approval": True,
+        }
+
     # Write to disk
     try:
         file_path.parent.mkdir(parents=True, exist_ok=True)

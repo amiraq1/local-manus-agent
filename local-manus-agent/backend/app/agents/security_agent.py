@@ -1,6 +1,6 @@
 """Security Agent - reviews plans and commands for safety."""
 from app.agents.base_agent import BaseAgent, TaskContext
-from app.tools.safety import is_command_safe
+from app.security.permissions import Decision, check_command
 
 
 class SecurityAgent(BaseAgent):
@@ -20,8 +20,8 @@ class SecurityAgent(BaseAgent):
 
             if tool == "run_command":
                 command = params.get("command", "")
-                safe, reason = is_command_safe(command)
-                if not safe:
+                decision, reason = check_command(ctx.task_id, command)
+                if decision == Decision.DENY:
                     blocked.append({
                         "step": i,
                         "command": command,
@@ -30,6 +30,9 @@ class SecurityAgent(BaseAgent):
                     step["_blocked"] = True
                     step["_block_reason"] = reason
                 else:
+                    if decision == Decision.REQUIRE_APPROVAL:
+                        step["_requires_approval"] = True
+                        step["_approval_reason"] = reason
                     approved.append(i)
             else:
                 approved.append(i)
@@ -45,4 +48,5 @@ class SecurityAgent(BaseAgent):
 
     def check_command(self, command: str) -> tuple[bool, str]:
         """Check a single command for safety."""
-        return is_command_safe(command)
+        decision, reason = check_command("", command)
+        return decision != Decision.DENY, reason

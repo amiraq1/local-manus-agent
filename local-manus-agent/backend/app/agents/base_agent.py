@@ -1,8 +1,10 @@
 """Base Agent class - foundation for all specialized agents."""
 import time
 import uuid
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 from dataclasses import dataclass, field
+
+ApprovalCallback = Callable[[str], bool | Awaitable[bool]]
 
 
 @dataclass
@@ -19,6 +21,7 @@ class TaskContext:
     errors: list = field(default_factory=list)
     final_summary: str = ""
     agent_steps: list = field(default_factory=list)
+    request_approval: Optional[ApprovalCallback] = None
 
 
 class BaseAgent:

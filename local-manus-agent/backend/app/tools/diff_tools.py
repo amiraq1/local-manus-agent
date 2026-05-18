@@ -1,6 +1,7 @@
 """Diff Engine - generates and manages file diffs before applying changes."""
 import difflib
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from app.workspace.manager import get_current_task_id, resolve_safe_path, get_current_files_dir
@@ -119,7 +120,23 @@ def accept_file_change(change_id: str) -> dict:
 
     db.accept_file_change(change_id)
     db.mark_file_change_applied(change_id)
-    return {"success": True, "change_id": change_id, "path": path, "status": "applied"}
+    artifact_id = str(uuid.uuid4())[:12]
+    db.create_artifact(
+        artifact_id=artifact_id,
+        task_id=task_id,
+        artifact_type="file",
+        name=Path(path).name,
+        path=path,
+        mime_type=_guess_mime(file_path.suffix.lower()),
+        size=len(change["new_content"]),
+    )
+    return {
+        "success": True,
+        "change_id": change_id,
+        "path": path,
+        "status": "applied",
+        "artifact_id": artifact_id,
+    }
 
 
 def reject_file_change(change_id: str) -> dict:
@@ -173,3 +190,19 @@ def list_pending_changes(task_id: Optional[str] = None) -> list[dict]:
         {"id": c["id"], "task_id": c["task_id"], "path": c["path"], "status": c["status"], "diff": c["diff"], "created_at": c["created_at"]}
         for c in changes
     ]
+
+
+def _guess_mime(ext: str) -> str:
+    mimes = {
+        ".html": "text/html", ".htm": "text/html",
+        ".css": "text/css",
+        ".js": "application/javascript", ".jsx": "application/javascript",
+        ".ts": "text/typescript", ".tsx": "text/typescript",
+        ".json": "application/json",
+        ".py": "text/x-python",
+        ".md": "text/markdown",
+        ".txt": "text/plain",
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".svg": "image/svg+xml", ".webp": "image/webp",
+    }
+    return mimes.get(ext, "application/octet-stream")

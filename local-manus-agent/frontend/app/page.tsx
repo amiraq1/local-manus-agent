@@ -19,6 +19,7 @@ import ExportPanel from "@/components/ExportPanel";
 import MobileNav, { MobileTab } from "@/components/MobileNav";
 import GoalModePanel from "@/components/GoalModePanel";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ExecutivePanel from "@/components/ExecutivePanel";
 import { ToastProvider } from "@/components/Toast";
 import { useAgent } from "@/lib/useAgent";
 import { APP_VERSION } from "@/lib/config";
@@ -128,6 +129,7 @@ export default function Home() {
                 <BrowserPanel state={browserState} onClose={closeBrowser} />
               )}
               <ArtifactsPanel taskId={currentTaskId} />
+              <ExecutivePanel />
               <MemoryPanel taskId={currentTaskId} />
               <SandboxStatus />
               <LLMStatusPanel />
@@ -157,6 +159,7 @@ export default function Home() {
             {mobileTab === "agents" && (
               <div className="flex-1 flex flex-col overflow-y-auto">
                 <AgentsPanel steps={agentSteps} />
+                <ExecutivePanel />
                 <ToolLog logs={toolLogs} />
                 <BrowserPanel state={browserState} onClose={closeBrowser} />
               </div>

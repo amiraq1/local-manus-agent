@@ -695,6 +695,39 @@ async def api_import_cancel(import_id: str):
     return cancel_import(import_id)
 
 
+# --- Executive Agent ---
+
+@app.post("/api/executive")
+async def api_executive_process(body: dict):
+    """Process input through the Executive Agent (JSON-only output)."""
+    from app.agents.executive_agent import ExecutiveAgent
+    message = body.get("message", "")
+    context = body.get("context", [])
+    if not message:
+        return {"status": "error", "action_type": "analyze_input",
+                "thought_process": "مدخلات فارغة", "payload": {"error": "message is required"}}
+    agent = ExecutiveAgent()
+    return await agent.process_with_context(message, context)
+
+
+@app.post("/api/executive/widget")
+async def api_executive_widget(body: dict):
+    """Generate a UI widget response via Executive Agent."""
+    from app.agents.executive_agent import ExecutiveAgent
+    widget_type = body.get("widget", "card")
+    props = body.get("props", {})
+    children = body.get("children", [])
+    agent = ExecutiveAgent()
+    return agent.create_widget_response(widget_type, props, children or None)
+
+
+@app.get("/api/executive/schema")
+async def api_executive_schema():
+    """Get the Executive Agent response JSON schema."""
+    from app.agents.executive_prompt import EXECUTIVE_RESPONSE_SCHEMA, DESIGN_DEFAULTS
+    return {"schema": EXECUTIVE_RESPONSE_SCHEMA, "design_defaults": DESIGN_DEFAULTS}
+
+
 # --- Goals ---
 
 @app.post("/api/goals/analyze")
@@ -1192,6 +1225,19 @@ async def websocket_agent(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
+
+            # --- Executive Agent mode (JSON-only) ---
+            if message.get("type") == "executive":
+                from app.agents.executive_agent import ExecutiveAgent
+                exec_agent = ExecutiveAgent()
+                content = message.get("content", "")
+                context = message.get("context", [])
+                result = await exec_agent.process_with_context(content, context)
+                await websocket.send_json({
+                    "type": "executive_response",
+                    "result": result,
+                })
+                continue
 
             if message.get("type") == "task":
                 task_id = str(uuid.uuid4())

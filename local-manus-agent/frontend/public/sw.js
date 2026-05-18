@@ -1,46 +1,31 @@
-// Service Worker for Local Manus Agent PWA
-// Caches static assets only. Does NOT cache API responses or task data.
+// Self-destructing service worker — clears all caches and unregisters itself.
+// This replaces a buggy SW that was intercepting /_next/* assets causing 500 errors.
+// Once all clients have loaded this version, the SW is permanently removed.
 
-const CACHE_NAME = "manus-v0.10.0";
-const STATIC_ASSETS = ["/", "/offline.html"];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
+    (async () => {
+      // Clear ALL caches
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
 
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
+      // Claim all clients so they get the new (empty) SW immediately
+      await self.clients.claim();
 
-  // Never cache API calls, WebSocket, or task data
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/ws/") ||
-    url.protocol === "ws:" ||
-    url.protocol === "wss:"
-  ) {
-    return;
-  }
+      // Unregister this service worker
+      await self.registration.unregister();
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).catch(() => {
-        if (event.request.mode === "navigate") {
-          return caches.match("/offline.html");
-        }
+      // Force reload all clients to get fresh assets
+      const clients = await self.clients.matchAll({ type: "window" });
+      clients.forEach((client) => {
+        client.navigate(client.url);
       });
-    })
+    })()
   );
 });
+
+// Do NOT intercept any fetch events — let everything pass through to the network

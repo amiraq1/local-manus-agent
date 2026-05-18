@@ -1,8 +1,7 @@
 """Orchestrator - coordinates all agents in sequence."""
-import asyncio
 from typing import AsyncGenerator
 
-from app.agents.base_agent import TaskContext
+from app.agents.base_agent import ApprovalCallback, TaskContext
 from app.agents.memory_agent import MemoryAgent
 from app.agents.planner_agent import PlannerAgent
 from app.agents.security_agent import SecurityAgent
@@ -27,7 +26,13 @@ class Orchestrator:
         self.reviewer_agent = ReviewerAgent()
         self.browser_agent = BrowserAgent()
 
-    async def run(self, task_id: str, user_message: str, mode: str = "safe") -> AsyncGenerator[dict, None]:
+    async def run(
+        self,
+        task_id: str,
+        user_message: str,
+        mode: str = "safe",
+        request_approval: ApprovalCallback | None = None,
+    ) -> AsyncGenerator[dict, None]:
         """Run the full agent pipeline, yielding events for streaming.
 
         Args:
@@ -47,6 +52,7 @@ class Orchestrator:
             user_message=user_message,
             mode=mode,
             workspace_paths={"files": str(files_dir)},
+            request_approval=request_approval,
         )
 
         # --- Phase 1: Memory Agent ---

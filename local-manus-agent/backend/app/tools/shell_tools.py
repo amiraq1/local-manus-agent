@@ -8,11 +8,12 @@ import subprocess
 import os
 
 from config import SANDBOX_ENABLED
+from app.security.permissions import Decision, check_command
 from app.tools.safety import is_command_safe
 from app.workspace.manager import get_current_task_id, get_files_dir
 
 
-def run_command(command: str) -> dict:
+def run_command(command: str, approved: bool = False) -> dict:
     """Run a shell command, using sandbox if enabled.
 
     The command is first validated by the safety module.
@@ -24,7 +25,25 @@ def run_command(command: str) -> dict:
     Returns:
         Dict with success status, stdout, stderr, and return code.
     """
-    # Safety check (applies regardless of sandbox mode)
+    task_id = get_current_task_id()
+
+    decision, reason = check_command(task_id, command)
+    if decision == Decision.DENY:
+        return {
+            "success": False,
+            "error": f"Command blocked: {reason}",
+            "command": command,
+            "sandbox": SANDBOX_ENABLED,
+        }
+    if decision == Decision.REQUIRE_APPROVAL and not approved:
+        return {
+            "success": False,
+            "error": f"Command requires approval: {reason}",
+            "command": command,
+            "sandbox": SANDBOX_ENABLED,
+            "requires_approval": True,
+        }
+
     safe, reason = is_command_safe(command)
     if not safe:
         return {
@@ -39,8 +58,6 @@ def run_command(command: str) -> dict:
         if get_docker_sandbox()._docker_available():
             return _run_in_sandbox(command)
         else:
-            # Fallback to local if docker is missing but enabled in config
-            # (unless it's Termux, where apply_termux_config should have disabled it anyway)
             from app.platform.detector import is_termux
             if is_termux():
                  return {
@@ -49,13 +66,13 @@ def run_command(command: str) -> dict:
                     "command": command,
                     "sandbox": True,
                 }
-            
-            # On desktop/others, we can log and fallback to local for resilience
-            # But we should mark it as NOT sandboxed for security awareness
-            res = _run_locally(command)
-            res["sandbox"] = False
-            res["warning"] = "Docker not available; fell back to host execution."
-            return res
+
+            return {
+                "success": False,
+                "error": "Docker sandbox is enabled but Docker is not available. Disable SANDBOX_ENABLED to run commands locally.",
+                "command": command,
+                "sandbox": True,
+            }
     else:
         return _run_locally(command)
 

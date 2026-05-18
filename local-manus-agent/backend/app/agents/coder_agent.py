@@ -1,5 +1,8 @@
 """Coder Agent - executes file creation and modification steps."""
+import inspect
+
 from app.agents.base_agent import BaseAgent, TaskContext
+from app.security.permissions import Decision, check_command
 
 
 class CoderAgent(BaseAgent):
@@ -39,6 +42,23 @@ class CoderAgent(BaseAgent):
             if step.get("tool", "").startswith("browser_") or step.get("tool") in ("start_preview", "stop_preview"):
                 continue
 
+            if step.get("tool") == "run_command":
+                command = step.get("params", {}).get("command", "")
+                decision, reason = check_command(ctx.task_id, command)
+                if decision == Decision.DENY:
+                    self._record_rejected(ctx, step, f"Blocked by policy: {reason}")
+                    failed += 1
+                    continue
+
+                needs_approval = ctx.mode == "safe" or decision == Decision.REQUIRE_APPROVAL
+                if needs_approval:
+                    approved = await self._request_command_approval(ctx, command)
+                    if not approved:
+                        self._record_rejected(ctx, step, "Command rejected by user")
+                        failed += 1
+                        continue
+                    step.setdefault("params", {})["approved"] = True
+
             result = await execute_step(step)
             ctx.tool_results.append(result)
 
@@ -57,3 +77,20 @@ class CoderAgent(BaseAgent):
 
         self.log_step(ctx, "coding", "completed", summary)
         return ctx
+
+    async def _request_command_approval(self, ctx: TaskContext, command: str) -> bool:
+        if not ctx.request_approval:
+            return False
+        result = ctx.request_approval(command)
+        if inspect.isawaitable(result):
+            result = await result
+        return bool(result)
+
+    def _record_rejected(self, ctx: TaskContext, step: dict, reason: str):
+        ctx.tool_results.append({
+            "success": False,
+            "error": reason,
+            "tool": step.get("tool", ""),
+            "description": step.get("description", ""),
+        })
+        ctx.errors.append(f"{step.get('description', 'Step')} failed: {reason}")

@@ -13,6 +13,7 @@ from app.tools.browser_tools import set_browser_task_id
 from app.tools.diff_tools import set_diff_task_id
 from app.workspace.manager import set_current_task_id
 from app import database as db
+from app.security.permissions import Decision, check_command
 from config import MAX_STEPS, MAX_RETRIES
 
 # Use multi-agent by default
@@ -64,7 +65,12 @@ class Agent:
 
         orchestrator = Orchestrator()
 
-        async for event in orchestrator.run(self.task_id, task, self.mode):
+        async for event in orchestrator.run(
+            self.task_id,
+            task,
+            self.mode,
+            request_approval=self.request_approval,
+        ):
             # Convert orchestrator events to legacy format for WebSocket compatibility
             if event.get("type") == "agent_step":
                 yield {
@@ -142,9 +148,33 @@ class Agent:
             db.update_step_status(self.task_id, step_index, "running")
 
             # Check if this is a shell command that needs approval
-            if step.get("tool") == "run_command" and self.mode == "safe":
+            if step.get("tool") == "run_command":
                 command = step.get("params", {}).get("command", "")
-                approved = await self._request_command_approval(command)
+                decision, reason = check_command(self.task_id, command)
+                if decision == Decision.DENY:
+                    result = {
+                        "success": False,
+                        "error": f"Command blocked: {reason}",
+                        "tool": "run_command",
+                        "description": step.get("description", ""),
+                    }
+                    self.results.append(result)
+                    db.update_step_status(self.task_id, step_index, "rejected", reason)
+                    db.add_tool_log(self.task_id, step_index, "run_command", step.get("params", {}), False, reason)
+
+                    yield {
+                        "phase": "observation",
+                        "content": f"Step {step_index + 1} blocked by policy",
+                        "result": result,
+                        "tool_log": {"step": step_index + 1, "tool": "run_command", "params": step.get("params", {}), "success": False},
+                    }
+                    step_index += 1
+                    continue
+
+                needs_approval = self.mode == "safe" or decision == Decision.REQUIRE_APPROVAL
+                approved = True
+                if needs_approval:
+                    approved = await self._request_command_approval(command)
 
                 if not approved:
                     result = {
@@ -165,6 +195,8 @@ class Agent:
                     }
                     step_index += 1
                     continue
+
+                step.setdefault("params", {})["approved"] = True
 
             # Execute the step
             result = await execute_step(step)
@@ -229,12 +261,18 @@ class Agent:
                 db.add_message(self.task_id, "agent", f"Applying fixes (attempt {retry_count}/{MAX_RETRIES})", "fixing")
 
                 for fix in fixes:
-                    # Check approval for fix commands too
-                    if fix.get("tool") == "run_command" and self.mode == "safe":
+                    if fix.get("tool") == "run_command":
                         command = fix.get("params", {}).get("command", "")
-                        approved = await self._request_command_approval(command)
+                        decision, reason = check_command(self.task_id, command)
+                        if decision == Decision.DENY:
+                            continue
+                        needs_approval = self.mode == "safe" or decision == Decision.REQUIRE_APPROVAL
+                        approved = True
+                        if needs_approval:
+                            approved = await self._request_command_approval(command)
                         if not approved:
                             continue
+                        fix.setdefault("params", {})["approved"] = True
 
                     fix_result = await execute_step(fix)
                     self.results.append(fix_result)

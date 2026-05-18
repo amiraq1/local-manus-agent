@@ -429,7 +429,10 @@ export function useAgent() {
 
   const acceptChange = useCallback(async (changeId: string) => {
     try {
-      const res = await fetch(`${API}/changes/${changeId}/accept`, { method: "POST" });
+      const change = fileChanges.find((c) => c.id === changeId);
+      const taskId = change?.task_id || currentTaskId;
+      if (!taskId) throw new Error("Missing task id for change");
+      const res = await fetch(`${API}/tasks/${taskId}/changes/${changeId}/accept`, { method: "POST" });
       if (!res.ok) throw new Error("Failed to accept change");
       setFileChanges((prev) =>
         prev.map((c) => (c.id === changeId ? { ...c, status: "applied" as const } : c))
@@ -437,11 +440,14 @@ export function useAgent() {
     } catch {
       // FIX: Don't update state on failure
     }
-  }, []);
+  }, [currentTaskId, fileChanges]);
 
   const rejectChange = useCallback(async (changeId: string) => {
     try {
-      const res = await fetch(`${API}/changes/${changeId}/reject`, { method: "POST" });
+      const change = fileChanges.find((c) => c.id === changeId);
+      const taskId = change?.task_id || currentTaskId;
+      if (!taskId) throw new Error("Missing task id for change");
+      const res = await fetch(`${API}/tasks/${taskId}/changes/${changeId}/reject`, { method: "POST" });
       if (!res.ok) throw new Error("Failed to reject change");
       setFileChanges((prev) =>
         prev.map((c) => (c.id === changeId ? { ...c, status: "rejected" as const } : c))
@@ -449,7 +455,7 @@ export function useAgent() {
     } catch {
       // FIX: Don't update state on failure
     }
-  }, []);
+  }, [currentTaskId, fileChanges]);
 
   return {
     messages,

@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pathlib import Path
 from pydantic import BaseModel
 
@@ -15,9 +16,9 @@ from app.tools.shell_tools import run_command
 from app.tools.preview_tools import start_preview, stop_preview, get_preview_url
 from app.browser.session import get_browser_manager
 from app import database as db
-from config import EXECUTION_MODE
+from config import ALLOWED_ORIGINS, ALLOW_REMOTE_ACCESS, API_TOKEN, APP_VERSION
 
-app = FastAPI(title="Local Manus Agent", version="0.9.0")
+app = FastAPI(title="Local Manus Agent", version=APP_VERSION)
 
 # Apply Termux adaptations if detected
 from app.platform.detector import is_termux
@@ -27,18 +28,53 @@ if is_termux():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+LOCAL_CLIENTS = {"127.0.0.1", "::1", "localhost", "testclient"}
+
+
+def _is_local_client(host: str) -> bool:
+    return host in LOCAL_CLIENTS or host.startswith("127.")
+
+
+def _client_allowed(host: str) -> bool:
+    return ALLOW_REMOTE_ACCESS or _is_local_client(host)
+
+
+def _extract_token(headers, query_params=None) -> str:
+    token = headers.get("x-api-key", "")
+    auth = headers.get("authorization", "")
+    if not token and auth.lower().startswith("bearer "):
+        token = auth[7:].strip()
+    if not token and query_params is not None:
+        token = query_params.get("token", "")
+    return token
+
+
+def _token_allowed(headers, query_params=None) -> bool:
+    if not API_TOKEN:
+        return True
+    return _extract_token(headers, query_params) == API_TOKEN
+
+
 @app.middleware("http")
-async def add_private_network_access_header(request: Request, call_next):
+async def enforce_local_access(request: Request, call_next):
     if request.method == "OPTIONS":
         response = await call_next(request)
         response.headers["Access-Control-Allow-Private-Network"] = "true"
         return response
+    client_host = request.client.host if request.client else ""
+    if not _client_allowed(client_host):
+        return JSONResponse(
+            status_code=403,
+            content={"error": "Remote API access is disabled. Set ALLOW_REMOTE_ACCESS=true only on trusted networks."},
+        )
+    if not _token_allowed(request.headers):
+        return JSONResponse(status_code=401, content={"error": "Invalid or missing API token"})
     return await call_next(request)
 
 # Store active WebSocket connections per task for approval flow
@@ -70,7 +106,7 @@ class ModeRequest(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"status": "running", "service": "Local Manus Agent", "version": "2.0.0"}
+    return {"status": "running", "service": "Local Manus Agent", "version": APP_VERSION}
 
 
 import logging
@@ -109,7 +145,8 @@ async def health():
 async def health_full():
     from app.platform.detector import get_platform_status
     from app.llm.factory import get_provider_status
-    import asyncio
+    from app.sandbox.docker_sandbox import get_docker_sandbox
+    from config import SANDBOX_ENABLED
     
     # Try to ping ollama or get llm status
     llm_status = {"available": False}
@@ -119,13 +156,7 @@ async def health_full():
         logger.error(f"LLM status check failed: {e}")
 
     # Docker/Sandbox status check
-    sandbox_available = False
-    try:
-        from app.sandbox.sandbox_factory import get_sandbox
-        # Checking sandbox availability
-        sandbox_available = True  # Simplified check
-    except Exception:
-        pass
+    sandbox_available = bool(SANDBOX_ENABLED and get_docker_sandbox()._docker_available())
 
     return {
         "status": "ok",
@@ -150,13 +181,13 @@ async def health_full():
 @app.get("/api/mode")
 async def get_mode():
     """Get current execution mode."""
-    return {"mode": EXECUTION_MODE}
+    import config
+    return {"mode": config.EXECUTION_MODE}
 
 
 @app.post("/api/mode")
 async def set_mode(request: ModeRequest):
     """Set execution mode."""
-    global EXECUTION_MODE
     import config
     if request.mode not in ("safe", "autonomous"):
         return {"error": "Invalid mode. Use 'safe' or 'autonomous'."}
@@ -257,6 +288,13 @@ async def api_write_file(request: FileWriteRequest):
 @app.post("/api/command")
 async def api_run_command(request: CommandRequest):
     """Run a command in workspace."""
+    import config
+    if config.EXECUTION_MODE == "safe":
+        return {
+            "success": False,
+            "error": "Direct command execution is disabled in Safe Mode. Use the agent approval flow.",
+            "requires_approval": True,
+        }
     result = run_command(request.command)
     return result
 
@@ -1214,6 +1252,14 @@ async def delete_artifact_endpoint(artifact_id: str):
 @app.websocket("/ws/agent")
 async def websocket_agent(websocket: WebSocket):
     """WebSocket endpoint for real-time agent communication."""
+    client_host = websocket.client.host if websocket.client else ""
+    if not _client_allowed(client_host):
+        await websocket.close(code=1008, reason="Remote WebSocket access is disabled")
+        return
+    if not _token_allowed(websocket.headers, websocket.query_params):
+        await websocket.close(code=1008, reason="Invalid or missing API token")
+        return
+
     try:
         await websocket.accept()
         logger.info(f"WebSocket connection accepted from {websocket.client}")

@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Security scan - checks repo for secrets, sensitive files, and violations."""
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).parent.parent
 
@@ -20,9 +25,43 @@ SECRET_PATTERNS = [
 FORBIDDEN_FILES = [".env", ".env.local", ".env.production"]
 FORBIDDEN_EXTENSIONS = [".db", ".sqlite", ".sqlite3", ".pem", ".key"]
 FORBIDDEN_DIRS = ["node_modules", ".next", "__pycache__", ".venv", "venv"]
+GENERATED_DIRS = set(FORBIDDEN_DIRS + ["out", "dist", "build"])
 
 # Files to skip during content scan
 SKIP_SCAN = [".png", ".jpg", ".ico", ".woff", ".ttf", ".lock", ".pyc"]
+
+
+def is_git_ignored(path: Path) -> bool:
+    try:
+        rel = str(path.relative_to(ROOT)).replace("\\", "/")
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", rel],
+            cwd=ROOT,
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def iter_repo_paths():
+    for current_root, dirs, files in os.walk(ROOT):
+        root_path = Path(current_root)
+        kept_dirs = []
+        for name in dirs:
+            path = root_path / name
+            if name == ".git" or name in GENERATED_DIRS or is_git_ignored(path):
+                continue
+            kept_dirs.append(name)
+            yield path
+        dirs[:] = kept_dirs
+
+        for name in files:
+            path = root_path / name
+            if is_git_ignored(path):
+                continue
+            yield path
 
 
 def main():
@@ -34,9 +73,7 @@ def main():
 
     # 1. Check for forbidden files
     print("\n[1] Checking for forbidden files...")
-    for f in ROOT.rglob("*"):
-        if ".git" in f.parts:
-            continue
+    for f in iter_repo_paths():
         rel = str(f.relative_to(ROOT))
 
         if f.name in FORBIDDEN_FILES:
@@ -46,20 +83,16 @@ def main():
 
     # 2. Check for forbidden directories
     print("[2] Checking for forbidden directories...")
-    for d in ROOT.rglob("*"):
+    for d in iter_repo_paths():
         if not d.is_dir():
-            continue
-        if ".git" in d.parts:
             continue
         if d.name in FORBIDDEN_DIRS:
             issues.append(("MEDIUM", f"Forbidden directory: {d.relative_to(ROOT)}"))
 
     # 3. Scan file contents for secrets
     print("[3] Scanning for secrets in source files...")
-    for f in ROOT.rglob("*"):
+    for f in iter_repo_paths():
         if not f.is_file():
-            continue
-        if ".git" in f.parts:
             continue
         if f.suffix in SKIP_SCAN:
             continue
@@ -86,8 +119,8 @@ def main():
 
     # 4. Check for docker.sock references
     print("[4] Checking for docker.sock references...")
-    for f in ROOT.rglob("*.py"):
-        if ".git" in f.parts:
+    for f in iter_repo_paths():
+        if not f.is_file() or f.suffix != ".py":
             continue
         content = f.read_text(encoding="utf-8", errors="ignore")
         if "docker.sock" in content and "FORBIDDEN" not in content and "blocked" not in content.lower():
@@ -97,13 +130,12 @@ def main():
     # Report
     print("\n" + "=" * 50)
     if not issues:
-        print("No security issues found ✓")
+        print("No security issues found")
         return 0
     else:
         print(f"Found {len(issues)} issue(s):\n")
         for severity, msg in sorted(issues, key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}.get(x[0], 3)):
-            icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡"}.get(severity, "⚪")
-            print(f"  {icon} [{severity}] {msg}")
+            print(f"  [{severity}] {msg}")
 
         critical = sum(1 for s, _ in issues if s == "CRITICAL")
         if critical > 0:
